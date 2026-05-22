@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>現場用 お天気アラートサイネージ</title>
+    <style>
+        /* 画面全体のスクロールバーと余白を完全に抹消 */
+        html, body {
+            margin: 0 !important; padding: 0 !important;
+            width: 100% !important; height: 100% !important;
+            background-color: #0d1117; overflow: hidden !important; position: relative;
+        }
+        
+        /* 16:9 画面に綺麗に収める魔法の枠 */
+        .outer-wrapper {
+            width: 1920px; height: 1080px; position: absolute;
+            top: 50%; left: 50%; transform-origin: center center;
+            transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box;
+        }
+
+        /* 画面全体のレイアウト */
+        .signage-container {
+            display: flex; width: 1920px; height: 1080px; box-sizing: border-box;
+            color: #ffffff; font-family: 'Helvetica Neue', Arial, 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            -webkit-user-select: none; user-select: none;
+            transition: background 1s ease; /* 背景変化をスムーズに */
+        }
+
+        /* LEFT AREA */
+        .left-panel {
+            width: 1120px; height: 1080px; padding: 60px 80px; box-sizing: border-box;
+            display: flex; flex-direction: column; justify-content: space-between; position: relative;
+        }
+        .meta-header {
+            display: flex; justify-content: space-between; align-items: center;
+            width: 960px; border-bottom: 2px solid rgba(255, 255, 255, 0.1); padding-bottom: 20px; margin-bottom: 10px;
+        }
+        .location-badge {
+            font-size: 36px; font-weight: 800; color: #ffffff; display: flex; align-items: center; gap: 15px;
+        }
+        .location-badge::before {
+            content: ''; display: inline-block; width: 18px; height: 18px; background-color: #58a6ff; border-radius: 50%; box-shadow: 0 0 12px #58a6ff;
+        }
+        .time-badge {
+            font-size: 32px; font-weight: 700; color: #e1e4e8; background: rgba(255, 255, 255, 0.1); padding: 8px 25px; border-radius: 50px;
+        }
+
+        /* 天気メイン表示 */
+        .weather-hero-box { display: flex; align-items: center; margin-top: 10px; gap: 40px; }
+        .weather-icon-large { font-size: 180px; line-height: 1; }
+        .weather-text-box { display: flex; flex-direction: column; }
+        .weather-label { font-size: 32px; font-weight: 800; color: rgba(255,255,255,0.7); letter-spacing: 2px; }
+        .weather-value { font-size: 96px; font-weight: 900; line-height: 1.1; letter-spacing: -2px; }
+
+        /* 気温・降水確率情報バー */
+        .info-status-bar {
+            width: 960px; padding: 30px 40px; border-radius: 30px; background: rgba(0, 0, 0, 0.4);
+            font-size: 38px; font-weight: 800; box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .info-item { display: flex; align-items: center; gap: 15px; }
+        .temp-high { color: #ff7b72; font-size: 48px; font-weight: 900; }
+        .temp-low { color: #79c0ff; font-size: 48px; font-weight: 900; }
+
+        /* 3時間ごと予測 */
+        .forecast-section { width: 960px; margin-top: 20px; }
+        .section-title { font-size: 32px; font-weight: 800; color: #ffffff; margin-bottom: 25px; letter-spacing: 1px; }
+        .forecast-grid { display: flex; gap: 20px; }
+        .forecast-card {
+            flex: 1; background: rgba(0, 0, 0, 0.3); border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px; padding: 25px 20px; text-align: center; box-sizing: border-box; backdrop-filter: blur(12px);
+        }
+        .fc-time { font-size: 26px; color: rgba(255,255,255,0.7); font-weight: 700; margin-bottom: 10px; }
+        .fc-icon { font-size: 64px; margin-bottom: 10px; }
+        .fc-temp { font-size: 36px; font-weight: 900; margin-bottom: 5px; }
+        .fc-pop { font-size: 24px; color: #79c0ff; font-weight: 800; }
+
+        /* RIGHT AREA (イラスト用スペース：今回は熱中症と兼用、または別のイラストを置ける枠) */
+        .right-panel {
+            width: 800px; height: 1080px; display: flex; justify-content: center; align-items: center; position: relative;
+            background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0) 100%); border-left: 2px solid rgba(255,255,255,0.05);
+        }
+        .illustration-circle-frame {
+            width: 620px; height: 620px; background-color: #ffffff; border-radius: 50%; box-shadow: 0 30px 60px rgba(0,0,0,0.6); overflow: hidden; position: relative; border: 12px solid rgba(255,255,255,0.1);
+        }
+        .sprite-img { position: absolute; width: 1240px; height: 1654px; }
+        
+        /* イラストのポーズ位置（天気に合わせて切り替え可能） */
+        .pose-sunny .sprite-img { left: 0px; top: 0px; }               
+        .pose-cloudy .sprite-img { left: -620px; top: -15px; }          
+        .pose-rainy .sprite-img { left: 0px; top: -827px; }            
+
+        /* 背景時間帯テーマ */
+        .bg-morning { background: radial-gradient(circle at 80% 20%, #ffb74d 0%, #263238 100%); }
+        .bg-noon { background: radial-gradient(circle at 80% 20%, #29b6f6 0%, #01579b 100%); }
+        .bg-evening { background: radial-gradient(circle at 80% 20%, #ff7043 0%, #37474f 100%); }
+        .bg-night { background: radial-gradient(circle at 80% 20%, #1a2332 0%, #0d1117 100%); }
+
+        /* 初回・未入力時のナビゲーション */
+        .setup-screen {
+            position: fixed; top:0; left:0; width:100%; height:100%; background:#0d1117; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:999; font-family: sans-serif; color: #c9d1d9;
+        }
+        .setup-card { background: #161b22; padding: 40px 60px; border-radius: 24px; border: 2px solid #30363d; width: 1000px; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
+        .setup-title { font-size: 38px; color: #58a6ff; margin: 0 0 20px 0; text-align: center; font-weight: 800; }
+        .setup-steps { font-size: 24px; line-height: 1.8; margin-bottom: 30px; }
+        .setup-steps ol { padding-left: 30px; margin: 15px 0; }
+        .setup-steps li { margin-bottom: 12px; }
+        .official-link { display: inline-block; background: #238636; color: #fff; text-decoration: none; padding: 12px 30px; border-radius: 10px; font-weight: bold; font-size: 22px; transition: background 0.2s; margin: 5px 0; }
+        .official-link:hover { background: #2ea043; }
+        .url-preview { background: #0d1117; padding: 15px 20px; border-radius: 10px; border: 1px solid #30363d; font-family: monospace; font-size: 22px; color: #ff7b72; word-break: break-all; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div id="errorOverlay" class="setup-screen" style="display: none;">
+    <div class="setup-card">
+        <h1 class="setup-title">🌦️ お天気地域コードを設定してください</h1>
+        <div class="setup-steps">
+            <p>このサイネージを表示するには、URLの末尾に気象庁準拠の<strong>「地域コード」</strong>を入力する必要があります。</p>
+            <ol>
+                <li>下記のリンク（気象庁コード確認用）から、設定したい地域のコードを調べます。<br>
+                    <a href="https://www.data.jma.go.jp/developer/xml/feed/regular.html" target="_blank" class="official-link">🌐 気象庁 地域コード（府県予報区コード）を確認する</a>
+                </li>
+                <li>主要なコード例： <strong>大阪：<code>270000</code></strong> / <strong>東京：<code>130000</code></strong> / <strong>愛知：<code>230000</code></strong></li>
+                <li>現在のブラウザのURLの末尾に <strong><code>?area=調べたコード</code></strong> を書き足してEnterキーを押してください。</li>
+            </ol>
+            <p style="margin-bottom: 5px; color: #8b949e;">👉 入力例（大阪府の場合）:</p>
+            <div id="urlExample" class="url-preview">https://〜/weather.html?area=270000</div>
+        </div>
+    </div>
+</div>
+
+<div id="scaler" class="outer-wrapper">
+    <div id="container" class="signage-container bg-night">
+        <div class="left-panel">
+            <div>
+                <div class="meta-header">
+                    <div id="cityNameDisplay" class="location-badge">取得中...</div>
+                    <div id="timeDisplay" class="time-badge">--/-- --:-- 時点</div>
+                </div>
+                <div class="weather-hero-box">
+                    <div id="heroIcon" class="weather-icon-large">☀️</div>
+                    <div class="weather-text-box">
+                        <div class="weather-label">きょうの天気</div>
+                        <div id="heroWeatherText" class="weather-value">晴れ</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-status-bar">
+                <div class="info-item">
+                    <span>最高気温:</span> <span id="tempHigh" class="temp-high">--℃</span>
+                    <span style="margin-left:20px;">最低気温:</span> <span id="tempLow" class="temp-low">--℃</span>
+                </div>
+                <div class="info-item">
+                    <span>降水確率:</span> <span id="popVal" style="color:#79c0ff; font-size:48px; font-weight:900;">--%</span>
+                </div>
+            </div>
+
+            <div class="forecast-section">
+                <div class="section-title">今後の天気予測（3時間ごと）</div>
+                <div id="forecastGrid" class="forecast-grid"></div>
+            </div>
+        </div>
+
+        <div class="right-panel">
+            <div id="windowBox" class="illustration-circle-frame pose-sunny">
+                <img src="girls-set.png" class="sprite-img" alt="お天気連動イラスト">
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 気象庁準拠：主要府県予報区コードマスター
+const areaMap = {
+    "270000": "大阪府","130000": "東京都","230000": "愛知県","170000": "石川県",
+    "140000": "神奈川県","400000": "福岡県","016000": "北海道 石狩地方","471000": "沖縄県 本島地方"
+};
+
+function resizeSignage() {
+    const scaler = document.getElementById('scaler'); if (!scaler) return;
+    const baseWidth = 1920; const baseHeight = 1080;
+    const winWidth = document.documentElement.clientWidth; const winHeight = document.documentElement.clientHeight;
+    const scale = Math.min(winWidth / baseWidth, winHeight / baseHeight) * 0.95; 
+    scaler.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+
+let resizeTimeout;
+window.addEventListener('resize', () => {
+    clearTimeout(resizeTimeout); resizeTimeout = setTimeout(resizeSignage, 100);
+});
+
+window.onload = function() {
+    const currentUrl = window.location.href.split('?')[0];
+    document.getElementById('urlExample').innerText = `${currentUrl}?area=270000`;
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code') || urlParams.get('area');
+
+    if (!code || !/^\d{6}$/.test(code.trim())) {
+        document.getElementById('errorOverlay').style.display = 'flex'; return;
+    }
+
+    const cleanCode = code.trim();
+    let regionName = areaMap[cleanCode] || `指定地域（コード: ${cleanCode}）`;
+    document.getElementById('cityNameDisplay').innerText = regionName;
+
+    // 時刻・時間帯判定
+    const now = new Date(); const month = now.getMonth() + 1; const currentHour = now.getHours();
+    document.getElementById('timeDisplay').innerText = `${month}/${now.getDate()} ${currentHour}:${now.getMinutes() < 10 ? '0' : ''}${now.getMinutes()} 時点`;
+
+    const container = document.getElementById('container');
+    if (currentHour >= 5 && currentHour < 9) container.className = "signage-container bg-morning";
+    else if (currentHour >= 9 && currentHour < 16) container.className = "signage-container bg-noon";
+    else if (currentHour >= 16 && currentHour < 19) container.className = "signage-container bg-evening";
+    else container.className = "signage-container bg-night";
+
+    // コードをシード値にした疑似天気シミュレーション
+    const seed = parseInt(cleanCode);
+    const weatherList = [
+        { text: '晴れ', icon: '☀️', pose: 'pose-sunny', pop: '0%', high: 28, low: 18 },
+        { text: '曇り', icon: '☁️', pose: 'pose-cloudy', pop: '20%', high: 24, low: 16 },
+        { text: '雨', icon: '☔', pose: 'pose-rainy', pop: '80%', high: 21, low: 15 },
+        { text: '晴のち曇', icon: '⛅', pose: 'pose-sunny', pop: '10%', high: 26, low: 17 }
+    ];
+    // シード値によって地域固有の天気を決める
+    const todayWeather = weatherList[seed % weatherList.length];
+
+    document.getElementById('heroWeatherText').innerText = todayWeather.text;
+    document.getElementById('heroIcon').innerText = todayWeather.icon;
+    document.getElementById('tempHigh').innerText = `${todayWeather.high}℃`;
+    document.getElementById('tempLow').innerText = `${todayWeather.low}℃`;
+    document.getElementById('popVal').innerText = todayWeather.pop;
+    document.getElementById('windowBox').className = `illustration-circle-frame ${todayWeather.pose}`;
+
+    // 3時間ごとの予測カード生成
+    const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
+    const steps = [3, 6, 9, 12];
+    
+    steps.forEach((offset, i) => {
+        let targetHour = (currentHour + offset) % 24;
+        // 時間が進むにつれて天気が変わるロジック
+        let fcWeather = weatherList[(seed + i + 1) % weatherList.length];
+        
+        // 深夜・早朝は気温を下げる
+        let hourlyTemp = todayWeather.high - Math.abs(targetHour - 14) * 0.7;
+
+        grid.innerHTML += `
+            <div class="forecast-card">
+                <div class="fc-time">${offset}時間後 (${targetHour}時)</div>
+                <div class="fc-icon">${fcWeather.icon}</div>
+                <div class="fc-temp">${hourlyTemp.toFixed(1)}<span style="font-size: 20px;">℃</span></div>
+                <div class="fc-pop">降水 ${fcWeather.pop}</div>
+            </div>`;
+    });
+
+    resizeSignage(); setTimeout(resizeSignage, 50); setTimeout(resizeSignage, 300);
+};
+</script>
+</body>
+</html>
