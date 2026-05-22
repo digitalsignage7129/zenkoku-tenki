@@ -110,31 +110,21 @@ function resizeSignage() {
 }
 window.addEventListener('resize', resizeSignage);
 
-// 🛠️ 気象庁の全天候コード（45種類以上）を完全に網羅し、雨や雪の混じる天気を完璧に仕分けるロジックに修正
 function parseWeather(weatherCode) {
     const code = String(weatherCode);
-    
-    // 100番台：晴れベース
     if (code.startsWith('1')) {
         if (code === '100' || code === '120' || code === '130') return { text: '晴れ', icon: '☀️' };
         if (code === '101' || code === '111' || code === '121' || code === '131') return { text: '晴のち曇', icon: '⛅' };
         return { text: '晴のち雨', icon: '🌦️' };
     }
-    // 200番台：曇りベース
     if (code.startsWith('2')) {
         if (code === '200' || code === '220' || code === '230') return { text: '曇り', icon: '☁️' };
         if (code === '201' || code === '211' || code === '221' || code === '231') return { text: '曇のち晴', icon: '⛅' };
-        return { text: '曇のち雨', icon: '☔' }; // 212や218など、雨が含まれる場合は雨アイコンを優先
+        return { text: '曇のち雨', icon: '☔' };
     }
-    // 300番台：雨ベース
-    if (code.startsWith('3')) {
-        return { text: '雨', icon: '☔' };
-    }
-    // 400番台：雪ベース
-    if (code.startsWith('4')) {
-        return { text: '雪', icon: '❄️' };
-    }
-    return { text: '晴れのち曇', icon: '⛅' };
+    if (code.startsWith('3')) return { text: '雨', icon: '☔' };
+    if (code.startsWith('4')) return { text: '雪', icon: '❄️' };
+    return { text: '曇り', icon: '☁️' };
 }
 
 window.onload = function() {
@@ -152,44 +142,51 @@ window.onload = function() {
     fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`)
         .then(response => response.json())
         .then(data => {
-            const officeData = data[0];
-            const timeSeries = officeData.timeSeries;
+            // 【最重要修正】気象庁データの配列構造を完全に安全に解析し、絶対にフリーズさせないロジックに変更
+            if (!data || !data[0] || !data[0].timeSeries) throw new Error("Data Error");
             
-            // 天気テキスト・アイコン用のエリアデータ抽出
+            const timeSeries = data[0].timeSeries;
             const weatherArea = timeSeries[0].areas[subIdx] || timeSeries[0].areas[0];
-            if (!myTownName) {
-                document.getElementById('cityNameDisplay').innerText = weatherArea.area.name;
-            }
 
-            // 本日の天気
+            // 1. 天気テキスト・アイコンの処理
             const todayForecast = parseWeather(weatherArea.weatherCodes[0]);
             document.getElementById('heroWeatherText').innerText = todayForecast.text;
             document.getElementById('heroIcon').innerText = todayForecast.icon;
 
-            // 🛠️ 降水確率（pops）のインデックスズレを修正し、リアルタイムデータを100%正確に反映
-            const popTimeSeries = timeSeries[1];
-            const popArea = popTimeSeries.areas[subIdx] || popTimeSeries.areas[0];
-            const pops = popArea.pops || [];
+            // 2. 降水確率（pops）の安全な抽出処理
+            let currentPop = "0%";
+            let tomorrowPop = "0%";
+            let dayAfterPop = "0%";
+            let popList = ['0', '0', '0', '0'];
+
+            if (timeSeries[1] && timeSeries[1].areas) {
+                const popArea = timeSeries[1].areas[subIdx] || timeSeries[1].areas[0];
+                if (popArea.pops && popArea.pops.length > 0) {
+                    popList = popArea.pops;
+                    currentPop = `${popList[0]}%`;
+                    // 配列の位置に応じた安全な割り当て
+                    tomorrowPop = popList[2] !== undefined ? `${popList[2]}%` : currentPop;
+                    dayAfterPop = popList[4] !== undefined ? `${popList[4]}%` : currentPop;
+                }
+            }
             
-            // 直近の降水確率を取得
-            const currentPop = pops[0] !== undefined ? `${pops[0]}%` : '0%';
             document.getElementById('popVal').innerText = currentPop;
 
-            // 明日・明後日の天気
+            // 3. 明日・明後日の予報反映
             const tomorrowForecast = parseWeather(weatherArea.weatherCodes[1] || 100);
             document.getElementById('day1Text').innerText = tomorrowForecast.text;
             document.getElementById('day1Icon').innerText = tomorrowForecast.icon;
-            document.getElementById('day1Pop').innerText = `降水 ${pops[2] !== undefined ? pops[2] : currentPop}`;
+            document.getElementById('day1Pop').innerText = `降水 ${tomorrowPop}`;
 
             const dayAfterForecast = parseWeather(weatherArea.weatherCodes[2] || 200);
             document.getElementById('day2Text').innerText = dayAfterForecast.text;
             document.getElementById('day2Icon').innerText = dayAfterForecast.icon;
-            document.getElementById('day2Pop').innerText = `降水 ${pops[4] !== undefined ? pops[4] : currentPop}`;
+            document.getElementById('day2Pop').innerText = `降水 ${dayAfterPop}`;
 
-            // 3時間ごとの時間予報フィードの生成
+            // 4. 3時間ごとの時間予報フィード生成
             const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
             [3, 6, 9, 12].forEach((offset, idx) => {
-                const futurePop = pops[idx] !== undefined ? pops[idx] : (pops[0] || '0');
+                const futurePop = popList[idx] !== undefined ? popList[idx] : popList[0];
                 grid.innerHTML += `
                     <div class="forecast-card">
                         <div class="fc-time">${offset}時間後</div>
@@ -197,10 +194,13 @@ window.onload = function() {
                         <div class="fc-pop">降水 ${futurePop}%</div>
                     </div>`;
             });
+            
             resizeSignage();
         })
         .catch(err => {
-            if (!myTownName) document.getElementById('cityNameDisplay').innerText = "通信エラー";
+            console.error(err);
+            // エラー時もフリーズせず、文字だけは維持するバックアップ
+            if (!myTownName) document.getElementById('cityNameDisplay').innerText = "データ通信エラー";
         });
 
     resizeSignage(); setTimeout(resizeSignage, 50);
