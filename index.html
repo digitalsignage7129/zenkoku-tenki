@@ -3,72 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>【全地域対応】全国お天気サイネージ検索ポータル</title>
+    <title>全国お天気サイネージ検索ポータル</title>
     <style>
         body {
-            font-family: sans-serif; background-color: #e6f2ff; color: #1c2d42; margin: 0; padding: 40px 20px; display: flex; flex-direction: column; align-items: center;
+            font-family: sans-serif; background-color: #e6f2ff; color: #1c2d42; margin: 0; padding: 0;
+            display: flex; justify-content: center; align-items: center; min-height: 100vh;
         }
         .container {
-            max-width: 900px; width: 100%; background: white; padding: 30px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,51,102,0.1); border: 2px solid #b3d1ff; box-sizing: border-box;
+            max-width: 800px; width: 90%; background: white; padding: 40px; border-radius: 24px;
+            box-shadow: 0 15px 35px rgba(0,51,102,0.08); border: 3px solid #b3d1ff; box-sizing: border-box;
         }
-        h1 { text-align: center; color: #003366; font-size: 28px; margin-bottom: 5px; }
-        p.subtitle { text-align: center; color: #4a607a; margin-bottom: 25px; font-weight: bold; }
+        h1 { text-align: center; color: #003366; font-size: 32px; margin-top: 0; margin-bottom: 10px; font-weight: 900; }
+        p.subtitle { text-align: center; color: #4a607a; margin-bottom: 35px; font-size: 18px; font-weight: bold; }
         
         .search-box-container {
-            background: #f0f7ff; border: 3px solid #0066cc; padding: 25px; border-radius: 12px; margin-bottom: 35px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
+            background: #f4f9ff; border: 2px solid #0066cc; padding: 30px; border-radius: 16px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
         }
-        .search-title { font-size: 18px; font-weight: bold; color: #003366; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-        .search-row { display: flex; gap: 10px; }
+        .search-title { font-size: 20px; font-weight: bold; color: #003366; margin-bottom: 15px; }
+        .search-row { display: flex; gap: 15px; }
         .search-input {
-            flex: 1; padding: 15px; font-size: 18px; border: 2px solid #b3d1ff; border-radius: 8px; font-weight: bold;
+            flex: 1; padding: 18px; font-size: 20px; border: 2px solid #b3d1ff; border-radius: 10px; font-weight: bold; color: #1c2d42;
         }
-        .search-input:focus { border-color: #0066cc; outline: none; }
+        .search-input:focus { border-color: #0066cc; outline: none; box-shadow: 0 0 0 4px rgba(0,102,204,0.1); }
         .search-btn {
-            background: #0066cc; color: white; border: none; padding: 0 25px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; transition: background 0.2s;
+            background: #0066cc; color: white; border: none; padding: 0 35px; font-size: 20px; font-weight: bold; border-radius: 10px; cursor: pointer; transition: background 0.2s;
         }
         .search-btn:hover { background: #004499; }
-        .search-help { font-size: 14px; color: #667788; margin-top: 8px; font-weight: bold; }
-        .status-msg { font-size: 14px; color: #0088cc; font-weight: bold; margin-top: 5px; display: none; }
-
-        .region-section { margin-bottom: 25px; }
-        .region-title { font-size: 20px; font-weight: bold; color: #0066cc; border-left: 6px solid #0066cc; padding-left: 10px; margin-bottom: 15px; }
-        .btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
-        .area-btn { background: #f4f9ff; border: 2px solid #d0e4ff; padding: 12px; text-align: center; border-radius: 8px; font-weight: bold; cursor: pointer; color: #1c2d42; text-decoration: none; transition: all 0.2s; font-size: 16px; }
-        .area-btn:hover { background: #0066cc; color: white; border-color: #0066cc; transform: translateY(-2px); }
+        .search-help { font-size: 15px; color: #667788; margin-top: 15px; font-weight: bold; line-height: 1.5; }
+        .status-msg { font-size: 16px; color: #0088cc; font-weight: bold; margin-top: 10px; display: none; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🌦️ 現場用お天気サイネージ 起動ポータル</h1>
-    <p class="subtitle">気象庁公式マスターデータ連動・全国全市町村対応版</p>
+    <h1>🌦️ 現場用お天気サイネージ</h1>
+    <p class="subtitle">日本全国・全自動地域判合システム</p>
 
     <div class="search-box-container">
-        <div class="search-title">🔍 全国全市町村リアルタイム検索</div>
+        <div class="search-title">📍 対象の市町村名を入力してください</div>
         <div class="search-row">
-            <input type="text" id="keywordInput" class="search-input" placeholder="例：西条、枚方、豊橋、松山、新居浜...">
+            <input type="text" id="keywordInput" class="search-input" placeholder="例：西条、枚方、豊橋、札幌、那覇...">
             <button onclick="searchAreaAll()" class="search-btn">サイネージを起動</button>
         </div>
         <div id="statusMsg" class="status-msg">🔄 全国マスターデータを照合中...</div>
-        <div class="search-help">💡 「西条」「枚方」のように市町村名をそのまま入力してください。日本のあらゆる場所に対応しています。</div>
-    </div>
-
-    <div class="region-section">
-        <div class="region-title">よく使われる地域 クイック起動</div>
-        <div class="btn-grid">
-            <a class="area-btn" href="weather.html?area=380000&sub=1" style="background:#fff176; border-color:#0066cc;">愛媛東予(西条市)</a>
-            <a class="area-btn" href="weather.html?area=270000&sub=1">大阪東部(枚方市)</a>
-            <a class="area-btn" href="weather.html?area=230000&sub=1">愛知東部(豊橋市)</a>
-            <a class="area-btn" href="weather.html?area=130000&sub=0">東京都(23区)</a>
+        <div class="search-help">
+            💡 <strong>入力のコツ：</strong>「西条市」や「枚方市」のように「市」をつけず、<strong>「西条」「枚方」「豊橋」</strong>とだけ入力すると、気象庁のデータベースと確実に一致して起動します。
         </div>
     </div>
 </div>
 
 <script>
-// 気象庁の公式地域定義マスターデータを裏側で保持（自動照合用）
 let jmaAreaMaster = null;
 
-// ページを開いた瞬間に気象庁のエリアマスターデータを自動でバックグラウンド取得
+// 起動時に日本全国の全地域辞書（市町村含む）をバックグラウンドで読み込み
 window.onload = function() {
     fetch('https://www.jma.go.jp/bosai/common/const/area.json')
         .then(res => res.json())
@@ -80,8 +67,8 @@ window.onload = function() {
 
 function searchAreaAll() {
     const input = document.getElementById('keywordInput').value.trim();
-    if (!input) { alert('市町村名や地域名を入力してください。'); return; }
-    if (!jmaAreaMaster) { alert('ただいま全国の地域データを準備中です。2〜3秒後に再度お試しください。'); return; }
+    if (!input) { alert('市町村名を入力してください。'); return; }
+    if (!jmaAreaMaster) { alert('システム準備中です。数秒後に再度お試しください。'); return; }
 
     document.getElementById('statusMsg').style.display = "block";
 
@@ -89,21 +76,22 @@ function searchAreaAll() {
     let targetSubIdx = 0;
     let matchFound = false;
 
-    // 気象庁マスターの「class10s（市町村や地域をまとめる最小単位）」から、入力された名前が属する親コードを全自動探索
-    const class10s = jmaAreaMaster.class10s;
-    for (let c10Code in class10s) {
-        if (class10s[c10Code].name.includes(input)) {
-            // 見つかったらその地域を管轄する府県予報区コード（parent）を探す
-            const parentClass20 = class10s[c10Code].parent;
+    // 🔥 修正の肝：気象庁の一番深い市町村データ階層「class30s」を直接スキャン！
+    const class30s = jmaAreaMaster.class30s;
+    for (let c30Code in class30s) {
+        if (class30s[c30Code].name.includes(input)) {
+            // 市町村の親である「class20（細分区域）」をたどる
+            const parentClass20 = class30s[c30Code].parent;
             const class20 = jmaAreaMaster.class20s[parentClass20];
+            
             if (class20) {
-                const parentOffices = class20.parent; // これが 380000（愛媛県）などのコード
+                // さらにその親である府県予報区（例：380000 など）を特定
+                const parentOffices = class20.parent; 
                 targetCode = parentOffices;
                 
-                // サイネージ側の表示インデックス（東予、中予、南予などの細分化番号）を特定
+                // サイネージ側で「東予」「中予」「南予」などを選ぶインデックスを完全自動計算
                 const offices = jmaAreaMaster.offices[parentOffices];
                 if (offices && offices.children) {
-                    // 府県予報区内の「一次細分区域」の一致を確認してsubIdxを決定
                     const parentClass20s = offices.children;
                     for (let i = 0; i < parentClass20s.length; i++) {
                         if (parentClass20s[i] === parentClass20) {
@@ -121,14 +109,13 @@ function searchAreaAll() {
     document.getElementById('statusMsg').style.display = "none";
 
     if (matchFound && targetCode) {
-        // 例：西条市なら「weather.html?area=380000&sub=1（愛媛県東予）」へジャンプ！
+        // サイネージへ正確なコードを引き渡してジャンプ
         window.location.href = `weather.html?area=${targetCode}&sub=${targetSubIdx}`;
     } else {
-        alert(`「${input}」に該当する市町村・地域名が気象庁のデータベースから見つかりませんでした。「西条」や「松山」のように市を省いて再入力してみてください。`);
+        alert(`「${input}」に該当する地域が見つかりませんでした。「市」や「町」を省いて、地名だけで再度お試しください。`);
     }
 }
 
-// Enterキーでも検索できるようにする
 document.getElementById('keywordInput').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') { searchAreaAll(); }
 });
