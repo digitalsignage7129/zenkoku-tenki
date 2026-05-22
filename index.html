@@ -30,7 +30,7 @@
         }
         .search-btn:hover { background: #004499; }
         .search-help { font-size: 15px; color: #667788; margin-top: 15px; font-weight: bold; line-height: 1.5; }
-        .status-msg { font-size: 16px; color: #0088cc; font-weight: bold; margin-top: 10px; display: none; text-align: center; }
+        .status-msg { font-size: 16px; color: #0088cc; font-weight: bold; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
@@ -40,14 +40,14 @@
     <p class="subtitle">日本全国・全自動地域判定システム</p>
 
     <div class="search-box-container">
-        <div class="search-title">📍 対象の都道府県名、または都市名を入力してください</div>
+        <div class="search-title">📍 対象の都道府県名、または市区町村名を入力してください</div>
         <div class="search-row">
-            <input type="text" id="keywordInput" class="search-input" placeholder="例：東京、大阪、愛知、福岡、北海道...">
+            <input type="text" id="keywordInput" class="search-input" placeholder="例：東京、大阪、新宿、枚方、西条...">
             <button onclick="searchAreaAll()" class="search-btn">サイネージを起動</button>
         </div>
-        <div id="statusMsg" class="status-msg">🔄 全国マスターデータを照合中...</div>
+        <div id="statusMsg" class="status-msg">🔄 地域データベース読み込み中...（数秒かかる場合があります）</div>
         <div class="search-help">
-            💡 <strong>入力のヒント：</strong>「東京都」「大阪府」のように「都府県」をつけず、<strong>「東京」「大阪」「愛知」</strong>と入力するだけで、その地域のサイネージが確実に自動起動します。
+            💡 都道府県名（例：大阪、愛知）だけでなく、日本全国のあらゆる市区町村名（例：枚方、豊橋、西条、新宿など）に完全対応しました。
         </div>
     </div>
 </div>
@@ -55,48 +55,62 @@
 <script>
 let jmaAreaMaster = null;
 
-// 起動時に日本全国の全地域辞書をバックグラウンドで読み込み
-window.onload = function() {
+// 起動時に最優先で気象庁の全地域マスターデータをロード
+function loadMasterData() {
+    const statusEl = document.getElementById('statusMsg');
+    statusEl.style.display = "block";
+    
     fetch('https://www.jma.go.jp/bosai/common/const/area.json')
         .then(res => res.json())
-        .then(data => { jmaAreaMaster = data; })
-        .catch(err => console.error("マスターデータの取得に失敗しました", err));
-};
+        .then(data => {
+            jmaAreaMaster = data;
+            statusEl.style.display = "none"; // 読み込み完了したら非表示
+        })
+        .catch(err => {
+            console.error("マスターデータの取得に失敗しました", err);
+            statusEl.innerText = "❌ データの読み込みに失敗しました。再読み込みしてください。";
+        });
+}
+window.onload = loadMasterData;
 
 function searchAreaAll() {
-    const input = document.getElementById('keywordInput').value.trim();
+    let input = document.getElementById('keywordInput').value.trim();
     if (!input) { alert('地域名を入力してください。'); return; }
-    if (!jmaAreaMaster) { alert('システム準備中です。数秒後に再度お試しください。'); return; }
-
-    document.getElementById('statusMsg').style.display = "block";
+    if (!jmaAreaMaster) { alert('ただいまバックグラウンドで全国データを読み込み中です。数秒だけ待ってから再度お試しください。'); return; }
 
     let targetCode = null;
     let targetSubIdx = 0;
     let matchFound = false;
 
-    // 1. まずは最も広い「centers（地方単位）」や「offices（都道府県単位）」から検索（東京、大阪、愛知などに一発対応）
+    // 1. 都道府県名や広域エリア名でのマッチング（例：「東京」「大阪」など）
     const offices = jmaAreaMaster.offices;
     for (let oCode in offices) {
-        if (offices[oCode].name.includes(input)) {
+        if (offices[oCode].name.includes(input) || input.includes(offices[oCode].name)) {
             targetCode = oCode;
-            targetSubIdx = 0; // 都道府県の代表地域をデフォルトに設定
+            targetSubIdx = 0; 
             matchFound = true;
             break;
         }
     }
 
-    // 2. 都道府県名でヒットしなかった場合、細かい市町村階層（class30s / class20s）をディープスキャン
+    // 2. 市区町村階層（class30s）での超強力マッチング（例：「西条」「枚方」「豊橋」など）
     if (!matchFound) {
         const class30s = jmaAreaMaster.class30s;
         for (let c30Code in class30s) {
-            if (class30s[c30Code].name.includes(input)) {
+            const dbName = class30s[c30Code].name; // 気象庁DB側の名前（例：「西条市」）
+            
+            // 入力文字そのものが含まれるか、または「市・町・村」を除いた文字が含まれるかを厳密に判定
+            const cleanDbName = dbName.replace(/[市町村区]/g, ""); // DB側から市町村区を消した文字列
+            
+            if (dbName.includes(input) || input.includes(dbName) || (input.length >= 2 && cleanDbName.includes(input))) {
                 const parentClass20 = class30s[c30Code].parent;
                 const class20 = jmaAreaMaster.class20s[parentClass20];
+                
                 if (class20) {
                     const parentOffices = class20.parent; 
                     targetCode = parentOffices;
                     
-                    const officeObj = jmaAreaMaster.offices[parentOffices];
+                    const officeObj = offices[parentOffices];
                     if (officeObj && officeObj.children) {
                         const parentClass20s = officeObj.children;
                         for (let i = 0; i < parentClass20s.length; i++) {
@@ -113,12 +127,10 @@ function searchAreaAll() {
         }
     }
 
-    document.getElementById('statusMsg').style.display = "none";
-
     if (matchFound && targetCode) {
         window.location.href = `weather.html?area=${targetCode}&sub=${targetSubIdx}`;
     } else {
-        alert(`「${input}」に該当する地域が見つかりませんでした。別の主要な県名や地域名でお試しください。`);
+        alert(`「${input}」に該当する地域が特定できませんでした。漢字が合っているかご確認の上、もう一度お試しください。`);
     }
 }
 
