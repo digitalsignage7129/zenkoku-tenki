@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージ</title>
+    <title>お天気サイネージシステム</title>
     <style>
         html, body {
             margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important;
@@ -17,13 +17,12 @@
             display: flex; width: 1920px; height: 1080px; box-sizing: border-box;
             background: linear-gradient(180deg, #e6f2ff 0%, #cce6ff 100%); color: #1c2d42; padding: 50px 60px; gap: 50px;
             font-family: 'Helvetica Neue', Arial, 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
-            -webkit-user-select: none; user-select: none;
         }
         .main-panel { width: 800px; height: 980px; display: flex; flex-direction: column; justify-content: space-between; }
         .meta-header { display: flex; flex-direction: column; gap: 15px; border-bottom: 4px solid #1c2d42; padding-bottom: 25px; }
-        .location-badge { font-size: 56px; font-weight: 900; color: #003366; display: flex; align-items: center; gap: 15px; }
+        .location-badge { font-size: 64px; font-weight: 900; color: #003366; display: flex; align-items: center; gap: 15px; }
         .location-badge::before { content: ''; display: inline-block; width: 26px; height: 26px; background-color: #0066cc; border-radius: 50%; }
-        .live-clock-badge { font-size: 46px; font-weight: 900; color: #000000; background: #fff176; padding: 10px 35px; border-radius: 12px; border: 3px solid #1c2d42; width: fit-content; font-variant-numeric: tabular-nums; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .live-clock-badge { font-size: 46px; font-weight: 900; color: #000000; background: #fff176; padding: 10px 35px; border-radius: 12px; border: 3px solid #1c2d42; width: fit-content; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
         .weather-hero-box { display: flex; align-items: center; margin: 30px 0; gap: 35px; }
         .weather-icon-large { font-size: 240px; line-height: 1; filter: drop-shadow(4px 4px 12px rgba(0,0,0,0.1)); }
         .weather-text-box { display: flex; flex-direction: column; }
@@ -54,7 +53,7 @@
     <div class="signage-container">
         <div class="main-panel">
             <div class="meta-header">
-                <div id="cityNameDisplay" class="location-badge">読み込み中...</div>
+                <div id="cityNameDisplay" class="location-badge">設定中...</div>
                 <div id="liveClock" class="live-clock-badge">--/-- --:--:--</div>
             </div>
             <div class="weather-hero-box">
@@ -125,10 +124,11 @@ window.onload = function() {
     let code = urlParams.get('area') || '270000';
     let subIdx = parseInt(urlParams.get('sub') || '0');
     
-    // 👑 送られてきた綺麗なカスタムテキストをそのまま表示（バグの発生源を根絶）
-    let customName = urlParams.get('name');
-    if (customName) {
-        document.getElementById('cityNameDisplay').innerText = decodeURIComponent(customName);
+    // 入力された文字を最優先で取得
+    let myTownName = urlParams.get('mytown');
+    if (myTownName) {
+        // 気象庁のデータ通信が始まる前に、入力文字列（例：枚方、西条など）を画面に完全に固定します
+        document.getElementById('cityNameDisplay').innerText = decodeURIComponent(myTownName);
     }
 
     fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`)
@@ -139,8 +139,8 @@ window.onload = function() {
             const areasArr = timeSeries[0].areas;
             const targetArea = areasArr[subIdx] || areasArr[0];
 
-            // URLに名前がない場合のバックアップ処理
-            if (!customName) {
+            // 👑 気象庁データ（大阪府東部など）で上書きされる処理を完全に削除しました
+            if (!myTownName) {
                 document.getElementById('cityNameDisplay').innerText = targetArea.area.name;
             }
 
@@ -174,7 +174,8 @@ window.onload = function() {
             resizeSignage();
         })
         .catch(err => {
-            document.getElementById('cityNameDisplay').innerText = "通信エラー: 再起動してください";
+            // 通信エラー時も名前だけは残す
+            if (!myTownName) document.getElementById('cityNameDisplay').innerText = "通信エラー";
         });
 
     resizeSignage(); setTimeout(resizeSignage, 50);
