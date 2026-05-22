@@ -142,31 +142,48 @@ window.onload = function() {
     fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`)
         .then(response => response.json())
         .then(data => {
-            // 【最重要修正】気象庁データの配列構造を完全に安全に解析し、絶対にフリーズさせないロジックに変更
-            if (!data || !data[0] || !data[0].timeSeries) throw new Error("Data Error");
+            if (!data || !data[0]) throw new Error("Data Error");
             
             const timeSeries = data[0].timeSeries;
             const weatherArea = timeSeries[0].areas[subIdx] || timeSeries[0].areas[0];
 
-            // 1. 天気テキスト・アイコンの処理
+            // 1. 本日の天気の確定
             const todayForecast = parseWeather(weatherArea.weatherCodes[0]);
             document.getElementById('heroWeatherText').innerText = todayForecast.text;
             document.getElementById('heroIcon').innerText = todayForecast.icon;
 
-            // 2. 降水確率（pops）の安全な抽出処理
+            // 2. 👑【時間変動バグ完全修正】気象庁が提示するタイムスタンプの時間帯を解析して直近の確率を自動取得
             let currentPop = "0%";
             let tomorrowPop = "0%";
             let dayAfterPop = "0%";
-            let popList = ['0', '0', '0', '0'];
+            let popValues = [];
 
             if (timeSeries[1] && timeSeries[1].areas) {
                 const popArea = timeSeries[1].areas[subIdx] || timeSeries[1].areas[0];
-                if (popArea.pops && popArea.pops.length > 0) {
-                    popList = popArea.pops;
-                    currentPop = `${popList[0]}%`;
-                    // 配列の位置に応じた安全な割り当て
-                    tomorrowPop = popList[2] !== undefined ? `${popList[2]}%` : currentPop;
-                    dayAfterPop = popList[4] !== undefined ? `${popList[4]}%` : currentPop;
+                const timeStamps = timeSeries[1].timeDefines; // 気象庁のデータ時間枠リスト
+                popValues = popArea.pops || [];
+
+                if (popValues.length > 0) {
+                    // 現在時刻に一番近い気象庁の時間枠データを探索
+                    const nowHour = new Date().getHours();
+                    let targetIdx = 0;
+                    
+                    // 夜（18時以降）の場合は、配列の最初ではなく今現在の直近データを狙い撃ち
+                    if (timeStamps.length > 1) {
+                        for (let i = 0; i < timeStamps.length; i++) {
+                            const dateObj = new Date(timeStamps[i]);
+                            if (dateObj.getDate() === new Date().getDate()) {
+                                targetIdx = i; // 本日の該当する直近時間帯を発見
+                            }
+                        }
+                    }
+                    
+                    currentPop = `${popValues[targetIdx] || popValues[0]}%`;
+                    
+                    // 明日・明後日の確率も、配列の引き算ではなく時間定義の長さから安全に末尾を逆算
+                    const totalPops = popValues.length;
+                    tomorrowPop = totalPops >= 3 ? `${popValues[totalPops - 2]}%` : currentPop;
+                    dayAfterPop = totalPops >= 1 ? `${popValues[totalPops - 1]}%` : currentPop;
                 }
             }
             
@@ -183,10 +200,10 @@ window.onload = function() {
             document.getElementById('day2Icon').innerText = dayAfterForecast.icon;
             document.getElementById('day2Pop').innerText = `降水 ${dayAfterPop}`;
 
-            // 4. 3時間ごとの時間予報フィード生成
+            // 4. 3時間ごとの時間予報（直近の確率リストから安全に生成）
             const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
             [3, 6, 9, 12].forEach((offset, idx) => {
-                const futurePop = popList[idx] !== undefined ? popList[idx] : popList[0];
+                const futurePop = popValues[idx] !== undefined ? popValues[idx] : (popValues[0] || '0');
                 grid.innerHTML += `
                     <div class="forecast-card">
                         <div class="fc-time">${offset}時間後</div>
@@ -199,7 +216,6 @@ window.onload = function() {
         })
         .catch(err => {
             console.error(err);
-            // エラー時もフリーズせず、文字だけは維持するバックアップ
             if (!myTownName) document.getElementById('cityNameDisplay').innerText = "データ通信エラー";
         });
 
