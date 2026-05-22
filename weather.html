@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>お天気サイネージ（全国自動連動版）</title>
+    <style>
+        html, body {
+            margin: 0 !important; padding: 0 !important;
+            width: 100% !important; height: 100% !important;
+            background-color: #e6f2ff; overflow: hidden !important; position: relative;
+        }
+        .outer-wrapper {
+            width: 1920px; height: 1080px; position: absolute;
+            top: 50%; left: 50%; transform-origin: center center;
+            transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box;
+        }
+        .signage-container {
+            display: flex; width: 1920px; height: 1080px; box-sizing: border-box;
+            background: linear-gradient(180deg, #e6f2ff 0%, #cce6ff 100%); color: #1c2d42; padding: 50px 60px; gap: 50px;
+            font-family: 'Helvetica Neue', Arial, 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            -webkit-user-select: none; user-select: none;
+        }
+        .main-panel { width: 800px; height: 980px; display: flex; flex-direction: column; justify-content: space-between; }
+        .meta-header { display: flex; flex-direction: column; gap: 15px; border-bottom: 4px solid #1c2d42; padding-bottom: 25px; }
+        .location-badge { font-size: 56px; font-weight: 900; color: #003366; display: flex; align-items: center; gap: 15px; }
+        .location-badge::before { content: ''; display: inline-block; width: 26px; height: 26px; background-color: #0066cc; border-radius: 50%; }
+        .live-clock-badge { font-size: 46px; font-weight: 900; color: #000000; background: #fff176; padding: 10px 35px; border-radius: 12px; border: 3px solid #1c2d42; width: fit-content; font-variant-numeric: tabular-nums; letter-spacing: 1px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .weather-hero-box { display: flex; align-items: center; margin: 30px 0; gap: 35px; }
+        .weather-icon-large { font-size: 240px; line-height: 1; filter: drop-shadow(4px 4px 12px rgba(0,0,0,0.1)); }
+        .weather-text-box { display: flex; flex-direction: column; }
+        .weather-label { font-size: 34px; font-weight: 900; color: #4a607a; letter-spacing: 2px; }
+        .weather-value { font-size: 115px; font-weight: 900; line-height: 1.1; color: #002244; }
+        .info-status-bar { padding: 50px 40px; border-radius: 24px; background: #ffffff; font-size: 46px; font-weight: 900; border: 3px solid #b3d1ff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 15px 35px rgba(0,51,102,0.08); }
+        .pop-label { font-size: 48px; font-weight: 900; color: #003366; }
+        .pop-huge { color: #1976d2; font-size: 84px; font-weight: 900; font-variant-numeric: tabular-nums; }
+        .side-panel { flex: 1; height: 980px; display: flex; flex-direction: column; justify-content: space-between; gap: 30px; }
+        .section-block { background: #ffffff; border: 3px solid #b3d1ff; border-radius: 24px; padding: 35px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 15px 35px rgba(0,51,102,0.08); }
+        .section-title { font-size: 38px; font-weight: 900; color: #003366; margin-bottom: 20px; border-left: 10px solid #0066cc; padding-left: 15px; }
+        .forecast-grid { display: flex; gap: 20px; }
+        .forecast-card { flex: 1; background: #f4f9ff; border: 2px solid #d0e4ff; border-radius: 20px; padding: 30px 20px; text-align: center; }
+        .fc-time { font-size: 28px; color: #4a607a; font-weight: 900; margin-bottom: 10px; }
+        .fc-icon { font-size: 80px; margin-bottom: 10px; }
+        .fc-pop { font-size: 32px; color: #1976d2; font-weight: 900; }
+        .days-list { display: flex; flex-direction: column; gap: 15px; height: 100%; justify-content: center; }
+        .day-row { display: flex; align-items: center; justify-content: space-between; background: #f4f9ff; border: 2px solid #d0e4ff; border-radius: 20px; padding: 35px 40px; }
+        .day-name { font-size: 40px; font-weight: 900; width: 180px; color: #003366; }
+        .day-icon { font-size: 84px; width: 100px; text-align: center; }
+        .day-weather-text { font-size: 38px; font-weight: 900; width: 220px; color: #1c2d42; }
+        .day-pop { font-size: 44px; font-weight: 900; color: #1976d2; width: 200px; text-align: right; }
+    </style>
+</head>
+<body>
+
+<div id="scaler" class="outer-wrapper">
+    <div class="signage-container">
+        <div class="main-panel">
+            <div class="meta-header">
+                <div id="cityNameDisplay" class="location-badge">気象データ通信中...</div>
+                <div id="liveClock" class="live-clock-badge">--/-- --:--:--</div>
+            </div>
+            <div class="weather-hero-box">
+                <div id="heroIcon" class="weather-icon-large">⌛</div>
+                <div class="weather-text-box">
+                    <div class="weather-label">本日の天気</div>
+                    <div id="heroWeatherText" class="weather-value">読込中...</div>
+                </div>
+            </div>
+            <div class="info-status-bar">
+                <span class="pop-label">本日の降水確率</span>
+                <span id="popVal" class="pop-huge">--%</span>
+            </div>
+        </div>
+
+        <div class="side-panel">
+            <div class="section-block">
+                <div class="section-title">きょうこれからの動き（3時間ごと）</div>
+                <div id="forecastGrid" class="forecast-grid"></div>
+            </div>
+            <div class="section-block">
+                <div class="section-title">数日先までの天気予報</div>
+                <div class="days-list">
+                    <div class="day-row">
+                        <div class="day-name">明日</div>
+                        <div id="day1Icon" class="day-icon">⏳</div>
+                        <div id="day1Text" class="day-weather-text">--</div>
+                        <div id="day1Pop" class="day-pop">降水 --%</div>
+                    </div>
+                    <div class="day-row">
+                        <div class="day-name">明後日</div>
+                        <div id="day2Icon" class="day-icon">⏳</div>
+                        <div id="day2Text" class="day-weather-text">--</div>
+                        <div id="day2Pop" class="day-pop">降水 --%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function updateLiveClock() {
+    const clockEl = document.getElementById('liveClock'); if (!clockEl) return;
+    const now = new Date();
+    clockEl.innerText = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+}
+setInterval(updateLiveClock, 1000);
+
+function resizeSignage() {
+    const scaler = document.getElementById('scaler'); if (!scaler) return;
+    const scale = Math.min(document.documentElement.clientWidth / 1920, document.documentElement.clientHeight / 1080) * 0.95; 
+    scaler.style.transform = `translate(-50%, -50%) scale(${scale})`;
+}
+window.addEventListener('resize', resizeSignage);
+
+function parseWeather(weatherCode) {
+    const code = parseInt(weatherCode);
+    if ([100, 101, 120, 121, 130, 131].includes(code)) return { text: '晴れ', icon: '☀️' };
+    if ([200, 201, 220, 221, 230, 231].includes(code)) return { text: '曇り', icon: '☁️' };
+    if ([300, 301, 302, 303, 350, 400].includes(code)) return { text: '雨', icon: '☔' };
+    return { text: '晴れのち曇', icon: '⛅' };
+}
+
+window.onload = function() {
+    updateLiveClock();
+    const urlParams = new URLSearchParams(window.location.search);
+    let code = urlParams.get('area') || urlParams.get('code') || '270000'; // デフォルト大阪
+
+    // 気象庁公式の地域別JSONをロード
+    fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`)
+        .then(response => response.json())
+        .then(data => {
+            const officeData = data[0];
+            
+            // 👑 気象庁のデータから「〇〇県」や「〇〇地方」の正式名称を自動取得して表示！
+            const fullRegionName = officeData.publishingOffice;
+            document.getElementById('cityNameDisplay').innerText = fullRegionName.replace("気象台", "管区");
+
+            const timeSeries = officeData.timeSeries;
+            const targetArea = timeSeries[0].areas[0];
+
+            const todayForecast = parseWeather(targetArea.weatherCodes[0]);
+            document.getElementById('heroWeatherText').innerText = todayForecast.text;
+            document.getElementById('heroIcon').innerText = todayForecast.icon;
+
+            const pops = timeSeries[1].areas[0].pops;
+            document.getElementById('popVal').innerText = pops[0] ? `${pops[0]}%` : '0%';
+
+            const tomorrowForecast = parseWeather(targetArea.weatherCodes[1] || 100);
+            document.getElementById('day1Text').innerText = tomorrowForecast.text;
+            document.getElementById('day1Icon').innerText = tomorrowForecast.icon;
+            document.getElementById('day1Pop').innerText = pops[2] ? `降水 ${pops[2]}%` : '降水 0%';
+
+            const dayAfterForecast = parseWeather(targetArea.weatherCodes[2] || 200);
+            document.getElementById('day2Text').innerText = dayAfterForecast.text;
+            document.getElementById('day2Icon').innerText = dayAfterForecast.icon;
+            document.getElementById('day2Pop').innerText = pops[4] ? `降水 ${pops[4]}%` : '降水 0%';
+
+            const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
+            [3, 6, 9, 12].forEach((offset) => {
+                grid.innerHTML += `
+                    <div class="forecast-card">
+                        <div class="fc-time">${offset}時間後</div>
+                        <div class="fc-icon">${todayForecast.icon}</div>
+                        <div class="fc-pop">降水 ${pops[0] || 0}%</div>
+                    </div>`;
+            });
+            resizeSignage();
+        })
+        .catch(err => {
+            document.getElementById('cityNameDisplay').innerText = "エラー: 正しいエリアコードを読み込めません";
+        });
+
+    resizeSignage(); setTimeout(resizeSignage, 50);
+};
+</script>
+</body>
+</html>
