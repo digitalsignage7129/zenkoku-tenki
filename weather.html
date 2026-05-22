@@ -3,17 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージ（全国自動連動版）</title>
+    <title>お天気サイネージ</title>
     <style>
         html, body {
-            margin: 0 !important; padding: 0 !important;
-            width: 100% !important; height: 100% !important;
+            margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important;
             background-color: #e6f2ff; overflow: hidden !important; position: relative;
         }
         .outer-wrapper {
-            width: 1920px; height: 1080px; position: absolute;
-            top: 50%; left: 50%; transform-origin: center center;
-            transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box;
+            width: 1920px; height: 1080px; position: absolute; top: 50%; left: 50%;
+            transform-origin: center center; transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box;
         }
         .signage-container {
             display: flex; width: 1920px; height: 1080px; box-sizing: border-box;
@@ -56,7 +54,7 @@
     <div class="signage-container">
         <div class="main-panel">
             <div class="meta-header">
-                <div id="cityNameDisplay" class="location-badge">気象データ通信中...</div>
+                <div id="cityNameDisplay" class="location-badge">読み込み中...</div>
                 <div id="liveClock" class="live-clock-badge">--/-- --:--:--</div>
             </div>
             <div class="weather-hero-box">
@@ -124,26 +122,34 @@ function parseWeather(weatherCode) {
 window.onload = function() {
     updateLiveClock();
     const urlParams = new URLSearchParams(window.location.search);
-    let code = urlParams.get('area') || urlParams.get('code') || '270000'; // デフォルト大阪
+    let code = urlParams.get('area') || '270000';
+    let subIdx = parseInt(urlParams.get('sub') || '0');
+    
+    // 👑 送られてきた綺麗なカスタムテキストをそのまま表示（バグの発生源を根絶）
+    let customName = urlParams.get('name');
+    if (customName) {
+        document.getElementById('cityNameDisplay').innerText = decodeURIComponent(customName);
+    }
 
-    // 気象庁公式の地域別JSONをロード
     fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`)
         .then(response => response.json())
         .then(data => {
             const officeData = data[0];
-            
-            // 👑 気象庁のデータから「〇〇県」や「〇〇地方」の正式名称を自動取得して表示！
-            const fullRegionName = officeData.publishingOffice;
-            document.getElementById('cityNameDisplay').innerText = fullRegionName.replace("気象台", "管区");
-
             const timeSeries = officeData.timeSeries;
-            const targetArea = timeSeries[0].areas[0];
+            const areasArr = timeSeries[0].areas;
+            const targetArea = areasArr[subIdx] || areasArr[0];
+
+            // URLに名前がない場合のバックアップ処理
+            if (!customName) {
+                document.getElementById('cityNameDisplay').innerText = targetArea.area.name;
+            }
 
             const todayForecast = parseWeather(targetArea.weatherCodes[0]);
             document.getElementById('heroWeatherText').innerText = todayForecast.text;
             document.getElementById('heroIcon').innerText = todayForecast.icon;
 
-            const pops = timeSeries[1].areas[0].pops;
+            const popArea = timeSeries[1].areas[subIdx] || timeSeries[1].areas[0];
+            const pops = popArea.pops;
             document.getElementById('popVal').innerText = pops[0] ? `${pops[0]}%` : '0%';
 
             const tomorrowForecast = parseWeather(targetArea.weatherCodes[1] || 100);
@@ -168,7 +174,7 @@ window.onload = function() {
             resizeSignage();
         })
         .catch(err => {
-            document.getElementById('cityNameDisplay').innerText = "エラー: 正しいエリアコードを読み込めません";
+            document.getElementById('cityNameDisplay').innerText = "通信エラー: 再起動してください";
         });
 
     resizeSignage(); setTimeout(resizeSignage, 50);
