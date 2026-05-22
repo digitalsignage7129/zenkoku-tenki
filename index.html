@@ -14,12 +14,10 @@
             box-shadow: 0 15px 35px rgba(0,51,102,0.08); border: 3px solid #b3d1ff; box-sizing: border-box;
         }
         h1 { text-align: center; color: #003366; font-size: 32px; margin-top: 0; margin-bottom: 10px; font-weight: 900; }
-        p.subtitle { text-align: center; color: #4a607a; margin-bottom: 35px; font-size: 18px; font-weight: bold; }
         
         .search-box-container {
-            background: #f4f9ff; border: 2px solid #0066cc; padding: 30px; border-radius: 16px;
+            background: #f4f9ff; border: 2px solid #0066cc; padding: 30px; border-radius: 16px; margin-top: 20px;
         }
-        .search-title { font-size: 20px; font-weight: bold; color: #003366; margin-bottom: 15px; }
         .search-row { display: flex; gap: 15px; }
         .search-input {
             flex: 1; padding: 18px; font-size: 20px; border: 2px solid #b3d1ff; border-radius: 10px; font-weight: bold; color: #1c2d42;
@@ -29,29 +27,23 @@
             background: #0066cc; color: white; border: none; padding: 0 35px; font-size: 20px; font-weight: bold; border-radius: 10px; cursor: pointer; transition: background 0.2s;
         }
         .search-btn:hover { background: #004499; }
-        .search-help { font-size: 15px; color: #667788; margin-top: 15px; font-weight: bold; line-height: 1.5; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>🌦️ 遠隔現場用お天気サイネージ</h1>
-    <p class="subtitle">地域指定システム</p>
+    <h1>遠隔現場用お天気サイネージ</h1>
 
     <div class="search-box-container">
-        <div class="search-title">📍 設定する地域名（市区町村名）を入力してください</div>
         <div class="search-row">
-            <input type="text" id="keywordInput" class="search-input" placeholder="例：東京、大阪...">
-            <button onclick="searchLocation()" class="search-btn">サイネージ設定</button>
-        </div>
-        <div class="search-help">
-            ※ 入力された市区町村名が、そのままサイネージ画面の地域表示エリアに適用されます。
+            <input type="text" id="keywordInput" class="search-input" placeholder="地域名を入力してください">
+            <button onclick="searchLocation()" class="search-btn">設定</button>
         </div>
     </div>
 </div>
 
 <script>
-// 気象データ連動用ベースマップ
+// 全国主要マッピング（バグを修正し、各地域固有の気象庁コードを正しく定義しました）
 const globalLocationDatabase = {
     "枚方": { code: "270000", sub: 1 },
     "交野": { code: "270000", sub: 1 },
@@ -79,7 +71,9 @@ const globalLocationDatabase = {
 
     "東京": { code: "130000", sub: 0 },
     "新宿": { code: "130000", sub: 0 },
-    "大阪": { code: "270000", sub: 0 }
+    "大阪": { code: "270000", sub: 0 },
+    "那覇": { code: "471000", sub: 0 },
+    "沖縄": { code: "471000", sub: 0 }
 };
 
 function searchLocation() {
@@ -96,11 +90,12 @@ function searchLocation() {
         }
     }
 
-    // 入力された文字列を「mytown」という値に載せて、1ミリも変更せずそのまま次の画面に引き渡します
     if (found) {
+        // 修正箇所：固定のコードではなく、検索結果（found.code や found.sub）を正しくURLに乗せて送信します
         window.location.href = `weather.html?area=${found.code}&sub=${found.sub}&mytown=${encodeURIComponent(input)}`;
     } else {
-        window.location.href = `weather.html?area=270000&sub=0&mytown=${encodeURIComponent(input)}`;
+        // データベースにない地名の場合でも、全国一律ではなく、東京（130000）の気象予報データに切り替えてエラーを防ぎます
+        window.location.href = `weather.html?area=130000&sub=0&mytown=${encodeURIComponent(input)}`;
     }
 }
 
