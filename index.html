@@ -17,14 +17,14 @@
         p.subtitle { text-align: center; color: #4a607a; margin-bottom: 35px; font-size: 18px; font-weight: bold; }
         
         .search-box-container {
-            background: #f4f9ff; border: 2px solid #0066cc; padding: 30px; border-radius: 16px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
+            background: #f4f9ff; border: 2px solid #0066cc; padding: 30px; border-radius: 16px;
         }
         .search-title { font-size: 20px; font-weight: bold; color: #003366; margin-bottom: 15px; }
         .search-row { display: flex; gap: 15px; }
         .search-input {
             flex: 1; padding: 18px; font-size: 20px; border: 2px solid #b3d1ff; border-radius: 10px; font-weight: bold; color: #1c2d42;
         }
-        .search-input:focus { border-color: #0066cc; outline: none; box-shadow: 0 0 0 4px rgba(0,102,204,0.1); }
+        .search-input:focus { border-color: #0066cc; outline: none; }
         .search-btn {
             background: #0066cc; color: white; border: none; padding: 0 35px; font-size: 20px; font-weight: bold; border-radius: 10px; cursor: pointer; transition: background 0.2s;
         }
@@ -37,17 +37,17 @@
 
 <div class="container">
     <h1>🌦️ 現場用お天気サイネージ</h1>
-    <p class="subtitle">日本全国・全自動地域判合システム</p>
+    <p class="subtitle">日本全国・全自動地域判定システム</p>
 
     <div class="search-box-container">
-        <div class="search-title">📍 対象の市町村名を入力してください</div>
+        <div class="search-title">📍 対象の都道府県名、または都市名を入力してください</div>
         <div class="search-row">
-            <input type="text" id="keywordInput" class="search-input" placeholder="例：西条、枚方、豊橋、札幌、那覇...">
+            <input type="text" id="keywordInput" class="search-input" placeholder="例：東京、大阪、愛知、福岡、北海道...">
             <button onclick="searchAreaAll()" class="search-btn">サイネージを起動</button>
         </div>
         <div id="statusMsg" class="status-msg">🔄 全国マスターデータを照合中...</div>
         <div class="search-help">
-            💡 <strong>入力のコツ：</strong>「西条市」や「枚方市」のように「市」をつけず、<strong>「西条」「枚方」「豊橋」</strong>とだけ入力すると、気象庁のデータベースと確実に一致して起動します。
+            💡 <strong>入力のヒント：</strong>「東京都」「大阪府」のように「都府県」をつけず、<strong>「東京」「大阪」「愛知」</strong>と入力するだけで、その地域のサイネージが確実に自動起動します。
         </div>
     </div>
 </div>
@@ -55,19 +55,17 @@
 <script>
 let jmaAreaMaster = null;
 
-// 起動時に日本全国の全地域辞書（市町村含む）をバックグラウンドで読み込み
+// 起動時に日本全国の全地域辞書をバックグラウンドで読み込み
 window.onload = function() {
     fetch('https://www.jma.go.jp/bosai/common/const/area.json')
         .then(res => res.json())
-        .then(data => {
-            jmaAreaMaster = data;
-        })
+        .then(data => { jmaAreaMaster = data; })
         .catch(err => console.error("マスターデータの取得に失敗しました", err));
 };
 
 function searchAreaAll() {
     const input = document.getElementById('keywordInput').value.trim();
-    if (!input) { alert('市町村名を入力してください。'); return; }
+    if (!input) { alert('地域名を入力してください。'); return; }
     if (!jmaAreaMaster) { alert('システム準備中です。数秒後に再度お試しください。'); return; }
 
     document.getElementById('statusMsg').style.display = "block";
@@ -76,32 +74,41 @@ function searchAreaAll() {
     let targetSubIdx = 0;
     let matchFound = false;
 
-    // 🔥 修正の肝：気象庁の一番深い市町村データ階層「class30s」を直接スキャン！
-    const class30s = jmaAreaMaster.class30s;
-    for (let c30Code in class30s) {
-        if (class30s[c30Code].name.includes(input)) {
-            // 市町村の親である「class20（細分区域）」をたどる
-            const parentClass20 = class30s[c30Code].parent;
-            const class20 = jmaAreaMaster.class20s[parentClass20];
-            
-            if (class20) {
-                // さらにその親である府県予報区（例：380000 など）を特定
-                const parentOffices = class20.parent; 
-                targetCode = parentOffices;
-                
-                // サイネージ側で「東予」「中予」「南予」などを選ぶインデックスを完全自動計算
-                const offices = jmaAreaMaster.offices[parentOffices];
-                if (offices && offices.children) {
-                    const parentClass20s = offices.children;
-                    for (let i = 0; i < parentClass20s.length; i++) {
-                        if (parentClass20s[i] === parentClass20) {
-                            targetSubIdx = i;
-                            break;
+    // 1. まずは最も広い「centers（地方単位）」や「offices（都道府県単位）」から検索（東京、大阪、愛知などに一発対応）
+    const offices = jmaAreaMaster.offices;
+    for (let oCode in offices) {
+        if (offices[oCode].name.includes(input)) {
+            targetCode = oCode;
+            targetSubIdx = 0; // 都道府県の代表地域をデフォルトに設定
+            matchFound = true;
+            break;
+        }
+    }
+
+    // 2. 都道府県名でヒットしなかった場合、細かい市町村階層（class30s / class20s）をディープスキャン
+    if (!matchFound) {
+        const class30s = jmaAreaMaster.class30s;
+        for (let c30Code in class30s) {
+            if (class30s[c30Code].name.includes(input)) {
+                const parentClass20 = class30s[c30Code].parent;
+                const class20 = jmaAreaMaster.class20s[parentClass20];
+                if (class20) {
+                    const parentOffices = class20.parent; 
+                    targetCode = parentOffices;
+                    
+                    const officeObj = jmaAreaMaster.offices[parentOffices];
+                    if (officeObj && officeObj.children) {
+                        const parentClass20s = officeObj.children;
+                        for (let i = 0; i < parentClass20s.length; i++) {
+                            if (parentClass20s[i] === parentClass20) {
+                                targetSubIdx = i;
+                                break;
+                            }
                         }
                     }
+                    matchFound = true;
+                    break;
                 }
-                matchFound = true;
-                break;
             }
         }
     }
@@ -109,10 +116,9 @@ function searchAreaAll() {
     document.getElementById('statusMsg').style.display = "none";
 
     if (matchFound && targetCode) {
-        // サイネージへ正確なコードを引き渡してジャンプ
         window.location.href = `weather.html?area=${targetCode}&sub=${targetSubIdx}`;
     } else {
-        alert(`「${input}」に該当する地域が見つかりませんでした。「市」や「町」を省いて、地名だけで再度お試しください。`);
+        alert(`「${input}」に該当する地域が見つかりませんでした。別の主要な県名や地域名でお試しください。`);
     }
 }
 
