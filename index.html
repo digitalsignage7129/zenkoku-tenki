@@ -43,8 +43,28 @@
 </div>
 
 <script>
-// 全国主要マッピング（バグを修正し、各地域固有の気象庁コードを正しく定義しました）
+// 🗺️ 全国主要都市・気象庁コード完全固定マップ（コードの送信漏れを完全に防ぎます）
 const globalLocationDatabase = {
+    // 北海道・東北
+    "札幌": { code: "016000", sub: 0 },
+    "北海道": { code: "016000", sub: 0 },
+    "仙台": { code: "040000", sub: 0 },
+    "宮城": { code: "040000", sub: 0 },
+
+    // 関東
+    "東京": { code: "130000", sub: 0 },
+    "新宿": { code: "130000", sub: 0 },
+    "横浜": { code: "140000", sub: 0 },
+    "神奈川": { code: "140000", sub: 0 },
+
+    // 中部（愛知・豊橋など）
+    "名古屋": { code: "230000", sub: 0 },
+    "愛知": { code: "230000", sub: 0 },
+    "豊橋": { code: "230000", sub: 1 },
+    "岡崎": { code: "230000", sub: 1 },
+
+    // 近畿（大阪・枚方など）
+    "大阪": { code: "270000", sub: 0 },
     "枚方": { code: "270000", sub: 1 },
     "交野": { code: "270000", sub: 1 },
     "寝屋川": { code: "270000", sub: 1 },
@@ -58,20 +78,19 @@ const globalLocationDatabase = {
     "茨木": { code: "270000", sub: 0 },
     "堺": { code: "270000", sub: 2 },
     "岸和田": { code: "270000", sub: 2 },
+    "京都": { code: "260000", sub: 0 },
+    "神戸": { code: "280000", sub: 0 },
+    "兵庫": { code: "280000", sub: 0 },
 
+    // 四国（愛媛・西条など）
     "西条": { code: "380000", sub: 1 },
     "新居浜": { code: "380000", sub: 1 },
     "今治": { code: "380000", sub: 1 },
     "松山": { code: "380000", sub: 0 },
     "宇和島": { code: "380000", sub: 2 },
 
-    "豊橋": { code: "230000", sub: 1 },
-    "岡崎": { code: "230000", sub: 1 },
-    "名古屋": { code: "230000", sub: 0 },
-
-    "東京": { code: "130000", sub: 0 },
-    "新宿": { code: "130000", sub: 0 },
-    "大阪": { code: "270000", sub: 0 },
+    // 九州・沖縄
+    "福岡": { code: "400000", sub: 0 },
     "那覇": { code: "471000", sub: 0 },
     "沖縄": { code: "471000", sub: 0 }
 };
@@ -80,6 +99,7 @@ function searchLocation() {
     let input = document.getElementById('keywordInput').value.trim();
     if (!input) { alert('地域名を入力してください。'); return; }
 
+    // 入力文字から余計な「市・区・町・村・都・府・県」を排除して正確に突合
     const cleanInput = input.replace(/[市区町村都道府県]/g, "");
 
     let found = null;
@@ -91,10 +111,10 @@ function searchLocation() {
     }
 
     if (found) {
-        // 修正箇所：固定のコードではなく、検索結果（found.code や found.sub）を正しくURLに乗せて送信します
+        // 【修正】特定地域固有の気象庁エリアコード（area）とサブインデックス（sub）を100%確実に次画面へ渡します
         window.location.href = `weather.html?area=${found.code}&sub=${found.sub}&mytown=${encodeURIComponent(input)}`;
     } else {
-        // データベースにない地名の場合でも、全国一律ではなく、東京（130000）の気象予報データに切り替えてエラーを防ぎます
+        // リストにないマイナー地名の場合は、デフォルトとして東京(130000)のデータ枠を使用してエラーを防ぎます
         window.location.href = `weather.html?area=130000&sub=0&mytown=${encodeURIComponent(input)}`;
     }
 }
