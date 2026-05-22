@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>全国お天気サイネージ検索ポータル</title>
+    <title>お天気サイネージ地域選択ポータル</title>
     <style>
         body {
             font-family: sans-serif; background-color: #e6f2ff; color: #1c2d42; margin: 0; padding: 0;
@@ -35,51 +35,51 @@
 <body>
 
 <div class="container">
-    <h1>🌦️ 現場用お天気サイネージ</h1>
-    <p class="subtitle">日本全国・全自動地域判定システム</p>
+    <h1>🌦️ 遠隔現場用お天気サイネージ</h1>
+    <p class="subtitle">地域指定システム</p>
 
     <div class="search-box-container">
-        <div class="search-title">📍 対象の市区町村名を入力してください</div>
+        <div class="search-title">📍 設定する地域名（市区町村名）を入力してください</div>
         <div class="search-row">
-            <input type="text" id="keywordInput" class="search-input" placeholder="例：枚方、西条、豊橋、東京、大阪...">
-            <button onclick="searchLocation()" class="search-btn">サイネージを起動</button>
+            <input type="text" id="keywordInput" class="search-input" placeholder="例：東京、大阪...">
+            <button onclick="searchLocation()" class="search-btn">サイネージ設定</button>
         </div>
         <div class="search-help">
-            💡 入力した名前がそのままサイネージの画面左上にバシッと表示されます。
+            ※ 入力された市区町村名が、そのままサイネージ画面の地域表示エリアに適用されます。
         </div>
     </div>
 </div>
 
 <script>
-// 全国主要マッピング（気象データ連動用）
+// 気象データ連動用ベースマップ
 const globalLocationDatabase = {
-    "枚方": { code: "270000", sub: 1, disp: "枚方市" },
-    "交野": { code: "270000", sub: 1, disp: "交野市" },
-    "寝屋川": { code: "270000", sub: 1, disp: "寝屋川市" },
-    "守口": { code: "270000", sub: 1, disp: "守口市" },
-    "門真": { code: "270000", sub: 1, disp: "門真市" },
-    "東大阪": { code: "270000", sub: 1, disp: "東大阪市" },
-    "八尾": { code: "270000", sub: 1, disp: "八尾市" },
-    "豊中": { code: "270000", sub: 0, disp: "豊中市" },
-    "高槻": { code: "270000", sub: 0, disp: "高槻市" },
-    "吹田": { code: "270000", sub: 0, disp: "吹田市" },
-    "茨木": { code: "270000", sub: 0, disp: "茨木市" },
-    "堺": { code: "270000", sub: 2, disp: "堺市" },
-    "岸和田": { code: "270000", sub: 2, disp: "岸和田市" },
+    "枚方": { code: "270000", sub: 1 },
+    "交野": { code: "270000", sub: 1 },
+    "寝屋川": { code: "270000", sub: 1 },
+    "守口": { code: "270000", sub: 1 },
+    "門真": { code: "270000", sub: 1 },
+    "東大阪": { code: "270000", sub: 1 },
+    "八尾": { code: "270000", sub: 1 },
+    "豊中": { code: "270000", sub: 0 },
+    "高槻": { code: "270000", sub: 0 },
+    "吹田": { code: "270000", sub: 0 },
+    "茨木": { code: "270000", sub: 0 },
+    "堺": { code: "270000", sub: 2 },
+    "岸和田": { code: "270000", sub: 2 },
 
-    "西条": { code: "380000", sub: 1, disp: "西条市" },
-    "新居浜": { code: "380000", sub: 1, disp: "新居浜市" },
-    "今治": { code: "380000", sub: 1, disp: "今治市" },
-    "松山": { code: "380000", sub: 0, disp: "松山市" },
-    "宇和島": { code: "380000", sub: 2, disp: "宇和島市" },
+    "西条": { code: "380000", sub: 1 },
+    "新居浜": { code: "380000", sub: 1 },
+    "今治": { code: "380000", sub: 1 },
+    "松山": { code: "380000", sub: 0 },
+    "宇和島": { code: "380000", sub: 2 },
 
-    "豊橋": { code: "230000", sub: 1, disp: "豊橋市" },
-    "岡崎": { code: "230000", sub: 1, disp: "岡崎市" },
-    "名古屋": { code: "230000", sub: 0, disp: "名古屋市" },
+    "豊橋": { code: "230000", sub: 1 },
+    "岡崎": { code: "230000", sub: 1 },
+    "名古屋": { code: "230000", sub: 0 },
 
-    "東京": { code: "130000", sub: 0, disp: "東京都" },
-    "新宿": { code: "130000", sub: 0, disp: "新宿区" },
-    "大阪": { code: "270000", sub: 0, disp: "大阪府" }
+    "東京": { code: "130000", sub: 0 },
+    "新宿": { code: "130000", sub: 0 },
+    "大阪": { code: "270000", sub: 0 }
 };
 
 function searchLocation() {
@@ -96,11 +96,10 @@ function searchLocation() {
         }
     }
 
+    // 入力された文字列を「mytown」という値に載せて、1ミリも変更せずそのまま次の画面に引き渡します
     if (found) {
-        // 気象データ用コードと一緒に、「画面表示させたい名前（found.disp）」を確実に引き渡す
-        window.location.href = `weather.html?area=${found.code}&sub=${found.sub}&mytown=${encodeURIComponent(found.disp)}`;
+        window.location.href = `weather.html?area=${found.code}&sub=${found.sub}&mytown=${encodeURIComponent(input)}`;
     } else {
-        // リストにない突発的なキーワードでも、入力された文字をそのまま表示名にして起動する
         window.location.href = `weather.html?area=270000&sub=0&mytown=${encodeURIComponent(input)}`;
     }
 }
