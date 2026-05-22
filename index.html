@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>高機能お天気サイネージ・地域密着検索ポータル</title>
+    <title>【全地域対応】全国お天気サイネージ検索ポータル</title>
     <style>
         body {
             font-family: sans-serif; background-color: #e6f2ff; color: #1c2d42; margin: 0; padding: 40px 20px; display: flex; flex-direction: column; align-items: center;
@@ -14,7 +14,6 @@
         h1 { text-align: center; color: #003366; font-size: 28px; margin-bottom: 5px; }
         p.subtitle { text-align: center; color: #4a607a; margin-bottom: 25px; font-weight: bold; }
         
-        /* 🔍 地域密着検索ボックスのスタイル */
         .search-box-container {
             background: #f0f7ff; border: 3px solid #0066cc; padding: 25px; border-radius: 12px; margin-bottom: 35px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.05);
         }
@@ -29,10 +28,11 @@
         }
         .search-btn:hover { background: #004499; }
         .search-help { font-size: 14px; color: #667788; margin-top: 8px; font-weight: bold; }
+        .status-msg { font-size: 14px; color: #0088cc; font-weight: bold; margin-top: 5px; display: none; }
 
         .region-section { margin-bottom: 25px; }
         .region-title { font-size: 20px; font-weight: bold; color: #0066cc; border-left: 6px solid #0066cc; padding-left: 10px; margin-bottom: 15px; }
-        .btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+        .btn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
         .area-btn { background: #f4f9ff; border: 2px solid #d0e4ff; padding: 12px; text-align: center; border-radius: 8px; font-weight: bold; cursor: pointer; color: #1c2d42; text-decoration: none; transition: all 0.2s; font-size: 16px; }
         .area-btn:hover { background: #0066cc; color: white; border-color: #0066cc; transform: translateY(-2px); }
     </style>
@@ -41,111 +41,96 @@
 
 <div class="container">
     <h1>🌦️ 現場用お天気サイネージ 起動ポータル</h1>
-    <p class="subtitle">日本全国・地域密着型お天気システム</p>
+    <p class="subtitle">気象庁公式マスターデータ連動・全国全市町村対応版</p>
 
     <div class="search-box-container">
-        <div class="search-title">🔍 ピンポイント地域検索（市町村名・地域名を入力）</div>
+        <div class="search-title">🔍 全国全市町村リアルタイム検索</div>
         <div class="search-row">
-            <input type="text" id="keywordInput" class="search-input" placeholder="例：枚方、豊中、堺、高槻、守口、寝屋川、東京、名古屋...">
-            <button onclick="searchArea()" class="search-btn">サイネージを起動</button>
+            <input type="text" id="keywordInput" class="search-input" placeholder="例：西条、枚方、豊橋、松山、新居浜...">
+            <button onclick="searchAreaAll()" class="search-btn">サイネージを起動</button>
         </div>
-        <div class="search-help">💡 「枚方市」のように「市」を付けずに「枚方」や「豊中」と入力するとヒットしやすいです。</div>
+        <div id="statusMsg" class="status-msg">🔄 全国マスターデータを照合中...</div>
+        <div class="search-help">💡 「西条」「枚方」のように市町村名をそのまま入力してください。日本のあらゆる場所に対応しています。</div>
     </div>
 
     <div class="region-section">
-        <div class="region-title">近畿広域（かんたん起動）</div>
+        <div class="region-title">よく使われる地域 クイック起動</div>
         <div class="btn-grid">
-            <a class="area-btn" href="weather.html?area=270000" style="background:#fff176; border-color:#0066cc;">大阪府</a>
-            <a class="area-btn" href="weather.html?area=260000">京都府</a>
-            <a class="area-btn" href="weather.html?area=280000">兵庫県</a>
-            <a class="area-btn" href="weather.html?area=250000">滋賀県</a>
-            <a class="area-btn" href="weather.html?area=290000">奈良県</a>
-            <a class="area-btn" href="weather.html?area=300000">和歌山県</a>
-        </div>
-    </div>
-
-    <div class="region-section">
-        <div class="region-title">主要都市</div>
-        <div class="btn-grid">
-            <a class="area-btn" href="weather.html?area=130000">東京都</a>
-            <a class="area-btn" href="weather.html?area=140000">神奈川県</a>
-            <a class="area-btn" href="weather.html?area=230000">愛知県</a>
-            <a class="area-btn" href="weather.html?area=400000">福岡県</a>
-            <a class="area-btn" href="weather.html?area=016000">北海道(札幌)</a>
+            <a class="area-btn" href="weather.html?area=380000&sub=1" style="background:#fff176; border-color:#0066cc;">愛媛東予(西条市)</a>
+            <a class="area-btn" href="weather.html?area=270000&sub=1">大阪東部(枚方市)</a>
+            <a class="area-btn" href="weather.html?area=230000&sub=1">愛知東部(豊橋市)</a>
+            <a class="area-btn" href="weather.html?area=130000&sub=0">東京都(23区)</a>
         </div>
     </div>
 </div>
 
 <script>
-// 地域密着型市町村辞書（気象庁の配信エリア詳細コードに完全紐付け）
-const localAreaMap = {
-    "枚方": { code: "270000", subIdx: 1 }, // 大阪府東部
-    "交野": { code: "270000", subIdx: 1 },
-    "寝屋川": { code: "270000", subIdx: 1 },
-    "守口": { code: "270000", subIdx: 1 },
-    "門真": { code: "270000", subIdx: 1 },
-    "大東": { code: "270000", subIdx: 1 },
-    "四條畷": { code: "270000", subIdx: 1 },
-    "東大阪": { code: "270000", subIdx: 1 },
-    "八尾": { code: "270000", subIdx: 1 },
-    "柏原": { code: "270000", subIdx: 1 },
-    
-    "豊中": { code: "270000", subIdx: 0 }, // 大阪府北部（能勢・豊能・三島・北河内）
-    "高槻": { code: "270000", subIdx: 0 },
-    "吹田": { code: "270000", subIdx: 0 },
-    "茨木": { code: "270000", subIdx: 0 },
-    "箕面": { code: "270000", subIdx: 0 },
-    "池田": { code: "270000", subIdx: 0 },
-    "摂津": { code: "270000", subIdx: 0 },
-    "島本": { code: "270000", subIdx: 0 },
-    
-    "堺": { code: "270000", subIdx: 2 },   // 大阪府南部（泉州・南河内）
-    "岸和田": { code: "270000", subIdx: 2 },
-    "和泉": { code: "270000", subIdx: 2 },
-    "泉佐野": { code: "270000", subIdx: 2 },
-    "富田林": { code: "270000", subIdx: 2 },
-    "河内長野": { code: "270000", subIdx: 2 },
-    "松原": { code: "270000", subIdx: 2 },
-    "羽曳野": { code: "270000", subIdx: 2 },
-    "藤井寺": { code: "270000", subIdx: 2 },
-    "泉大津": { code: "270000", subIdx: 2 },
-    "貝塚": { code: "270000", subIdx: 2 },
-    
-    "大阪": { code: "270000", subIdx: 0 },
-    "京都": { code: "260000", subIdx: 0 },
-    "神戸": { code: "280000", subIdx: 0 },
-    "奈良": { code: "290000", subIdx: 0 },
-    "大津": { code: "250000", subIdx: 0 },
-    "和歌山": { code: "300000", subIdx: 0 },
-    "東京": { code: "130000", subIdx: 0 },
-    "名古屋": { code: "230000", subIdx: 0 }
+// 気象庁の公式地域定義マスターデータを裏側で保持（自動照合用）
+let jmaAreaMaster = null;
+
+// ページを開いた瞬間に気象庁のエリアマスターデータを自動でバックグラウンド取得
+window.onload = function() {
+    fetch('https://www.jma.go.jp/bosai/common/const/area.json')
+        .then(res => res.json())
+        .then(data => {
+            jmaAreaMaster = data;
+        })
+        .catch(err => console.error("マスターデータの取得に失敗しました", err));
 };
 
-function searchArea() {
+function searchAreaAll() {
     const input = document.getElementById('keywordInput').value.trim();
-    if (!input) { alert('キーワードを入力してください。'); return; }
+    if (!input) { alert('市町村名や地域名を入力してください。'); return; }
+    if (!jmaAreaMaster) { alert('ただいま全国の地域データを準備中です。2〜3秒後に再度お試しください。'); return; }
 
-    // 辞書から部分一致で探す
-    let found = null;
-    for (let key in localAreaMap) {
-        if (input.includes(key) || key.includes(input)) {
-            found = localAreaMap[key];
-            break;
+    document.getElementById('statusMsg').style.display = "block";
+
+    let targetCode = null;
+    let targetSubIdx = 0;
+    let matchFound = false;
+
+    // 気象庁マスターの「class10s（市町村や地域をまとめる最小単位）」から、入力された名前が属する親コードを全自動探索
+    const class10s = jmaAreaMaster.class10s;
+    for (let c10Code in class10s) {
+        if (class10s[c10Code].name.includes(input)) {
+            // 見つかったらその地域を管轄する府県予報区コード（parent）を探す
+            const parentClass20 = class10s[c10Code].parent;
+            const class20 = jmaAreaMaster.class20s[parentClass20];
+            if (class20) {
+                const parentOffices = class20.parent; // これが 380000（愛媛県）などのコード
+                targetCode = parentOffices;
+                
+                // サイネージ側の表示インデックス（東予、中予、南予などの細分化番号）を特定
+                const offices = jmaAreaMaster.offices[parentOffices];
+                if (offices && offices.children) {
+                    // 府県予報区内の「一次細分区域」の一致を確認してsubIdxを決定
+                    const parentClass20s = offices.children;
+                    for (let i = 0; i < parentClass20s.length; i++) {
+                        if (parentClass20s[i] === parentClass20) {
+                            targetSubIdx = i;
+                            break;
+                        }
+                    }
+                }
+                matchFound = true;
+                break;
+            }
         }
     }
 
-    if (found) {
-        // subIdx（詳細な地域識別番号）も一緒にURLでサイネージへ引き渡す
-        window.location.href = `weather.html?area=${found.code}&sub=${found.subIdx}`;
+    document.getElementById('statusMsg').style.display = "none";
+
+    if (matchFound && targetCode) {
+        // 例：西条市なら「weather.html?area=380000&sub=1（愛媛県東予）」へジャンプ！
+        window.location.href = `weather.html?area=${targetCode}&sub=${targetSubIdx}`;
     } else {
-        // 該当がない場合は、都道府県の標準コードとして気象庁を叩く試み（暫定）
-        alert(`「${input}」のピンポイントコードを自動判別できませんでした。恐れ入りますが広域ボタンからお選びください。`);
+        alert(`「${input}」に該当する市町村・地域名が気象庁のデータベースから見つかりませんでした。「西条」や「松山」のように市を省いて再入力してみてください。`);
     }
 }
 
 // Enterキーでも検索できるようにする
 document.getElementById('keywordInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') { searchArea(); }
+    if (e.key === 'Enter') { searchAreaAll(); }
 });
 </script>
 </body>
