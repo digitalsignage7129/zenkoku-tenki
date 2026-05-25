@@ -2,27 +2,38 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>枚方市 お天気サイネージ</title>
+    <title>お天気サイネージ</title>
     <style>
-        body { margin: 0; background: #002244; color: white; font-family: sans-serif; }
-        .main-card { width: 90%; margin: 20px auto; padding: 30px; background: #003366; border-radius: 20px; text-align: center; }
-        .forecast-container { display: flex; justify-content: space-around; padding: 20px; }
-        .fc-box { background: #004488; padding: 15px; border-radius: 15px; width: 15%; }
-        .icon { font-size: 50px; }
+        body { margin: 0; background: #002244; color: white; font-family: sans-serif; text-align: center; }
+        .main-card { width: 80%; margin: 20px auto; padding: 30px; background: #003366; border-radius: 20px; }
+        .forecast-container { display: flex; justify-content: center; gap: 20px; padding: 20px; }
+        .fc-box { background: #004488; padding: 15px; border-radius: 15px; width: 100px; }
     </style>
 </head>
 <body>
     <div class="main-card">
-        <h1>現在の天気 (枚方市)</h1>
-        <div id="current-info" style="font-size: 30px;">読み込み中...</div>
+        <h1 id="title">天気を読み込み中...</h1>
+        <div id="current-info" style="font-size: 30px;">しばらくお待ちください</div>
     </div>
-    
-    <div class="forecast-container" id="forecast-area">
-        </div>
+    <div class="forecast-container" id="forecast-area"></div>
 
     <script>
-        // 通信はこれ一つで完結させます
-        const url = "https://api.open-meteo.com/v1/forecast?latitude=34.8153&longitude=135.6567&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&forecast_days=3";
+        // URLパラメータ ?mytown=豊橋市 などで都市を切り替え可能
+        const urlParams = new URLSearchParams(window.location.search);
+        const myTown = urlParams.get('mytown') || '豊橋市';
+        
+        // 都市ごとの座標リスト（ここに追加していけば全国どこでも対応可能）
+        const locations = {
+            "豊橋市": {lat: 34.7667, lon: 137.3833},
+            "枚方市": {lat: 34.8153, lon: 135.6567},
+            "名古屋市": {lat: 35.1814, lon: 136.9064},
+            "大阪市": {lat: 34.6937, lon: 135.5023}
+        };
+
+        const loc = locations[myTown] || {lat: 34.7667, lon: 137.3833};
+        document.getElementById('title').innerText = myTown + "の天気";
+
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code&timezone=Asia%2FTokyo&forecast_days=3`;
 
         function getIcon(code) {
             if(code < 2) return "☀️";
@@ -33,18 +44,16 @@
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                // 現在の天気を表示
                 document.getElementById('current-info').innerHTML = 
                     `${getIcon(data.current.weather_code)} 気温: ${data.current.temperature_2m}℃ / 湿度: ${data.current.relative_humidity_2m}%`;
 
-                // 3時間おき予報の表示
                 let html = "";
                 for(let i=1; i<=5; i++) {
                     let idx = i * 3;
                     html += `
                         <div class="fc-box">
-                            <div>${idx}時間後</div>
-                            <div class="icon">${getIcon(data.hourly.weather_code[idx])}</div>
+                            <div>${idx}h後</div>
+                            <div style="font-size:40px;">${getIcon(data.hourly.weather_code[idx])}</div>
                             <div>${data.hourly.temperature_2m[idx]}℃</div>
                         </div>`;
                 }
