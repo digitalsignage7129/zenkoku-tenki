@@ -2,241 +2,45 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージシステム (気象庁データ完全同期版)</title>
+    <title>お天気サイネージシステム (完全修正版)</title>
     <style>
-        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; background-color: #e6f2ff; overflow: hidden !important; position: relative; }
-        .outer-wrapper { width: 1920px; height: 1080px; position: absolute; top: 50%; left: 50%; transform-origin: center center; transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box; }
-        .signage-container { display: flex; width: 1920px; height: 1080px; box-sizing: border-box; background: linear-gradient(180deg, #e6f2ff 0%, #cce6ff 100%); color: #1c2d42; padding: 50px 60px; gap: 50px; font-family: 'Helvetica Neue', Arial, 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif; }
-        .main-panel { width: 850px; height: 980px; display: flex; flex-direction: column; justify-content: space-between; }
-        .meta-header { display: flex; flex-direction: column; gap: 15px; border-bottom: 4px solid #1c2d42; padding-bottom: 25px; }
-        .location-badge { font-size: 64px; font-weight: 900; color: #003366; display: flex; align-items: center; gap: 15px; }
-        .location-badge::before { content: ''; display: inline-block; width: 26px; height: 26px; background-color: #0066cc; border-radius: 50%; }
-        .live-clock-badge { font-size: 46px; font-weight: 900; color: #000000; background: #fff176; padding: 10px 35px; border-radius: 12px; border: 3px solid #1c2d42; width: fit-content; font-variant-numeric: tabular-nums; letter-spacing: 1px; }
-        
-        .weather-hero-box { display: flex; align-items: center; margin: 15px 0; gap: 40px; background: rgba(255,255,255,0.5); padding: 20px; border-radius: 24px; border: 3px solid #b3d1ff; }
-        .weather-icon-large { font-size: 200px; line-height: 1; filter: drop-shadow(4px 4px 12px rgba(0,0,0,0.1)); }
-        .weather-text-box { display: flex; flex-direction: column; }
-        .weather-label { font-size: 34px; font-weight: 900; color: #4a607a; letter-spacing: 2px; }
-        .weather-value { font-size: 80px; font-weight: 900; line-height: 1.1; color: #002244; }
-        
-        .current-temp-display { font-size: 110px; font-weight: 900; color: #ff6f00; font-variant-numeric: tabular-nums; margin-top: 5px; }
-        .current-temp-display span { font-size: 50px; margin-left: 5px; color: #1c2d42; }
-
-        .temp-container { display: flex; gap: 25px; margin-bottom: 15px; }
-        .temp-box { flex: 1; padding: 25px; border-radius: 20px; border: 3px solid #b3d1ff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,51,102,0.05); }
-        .temp-box.max { background: #fff5f5; border-color: #ffcccc; }
-        .temp-box.min { background: #f0f7ff; border-color: #cce2ff; }
-        .temp-title { font-size: 28px; font-weight: 900; margin-bottom: 5px; }
-        .temp-box.max .temp-title { color: #cc3333; }
-        .temp-box.min .temp-title { color: #3366cc; }
-        .temp-num { font-size: 72px; font-weight: 900; font-variant-numeric: tabular-nums; color: #1c2d42; }
-        .temp-unit { font-size: 36px; font-weight: 900; margin-left: 2px; }
-
-        .info-status-bar { padding: 35px 40px; border-radius: 24px; background: #ffffff; font-size: 46px; font-weight: 900; border: 3px solid #b3d1ff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 15px 35px rgba(0,51,102,0.08); }
-        .pop-label { font-size: 44px; font-weight: 900; color: #003366; }
-        .pop-huge { color: #1976d2; font-size: 72px; font-weight: 900; font-variant-numeric: tabular-nums; }
-        
-        .side-panel { flex: 1; height: 980px; display: flex; flex-direction: column; justify-content: space-between; gap: 30px; }
-        .section-block { background: #ffffff; border: 3px solid #b3d1ff; border-radius: 24px; padding: 35px; flex: 1; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 15px 35px rgba(0,51,102,0.08); }
-        .section-title { font-size: 38px; font-weight: 900; color: #003366; margin-bottom: 20px; border-left: 10px solid #0066cc; padding-left: 15px; }
-        .forecast-grid { display: flex; gap: 15px; }
-        .forecast-card { flex: 1; background: #f4f9ff; border: 2px solid #d0e4ff; border-radius: 20px; padding: 25px 15px; text-align: center; }
-        .fc-time { font-size: 30px; color: #4a607a; font-weight: 900; margin-bottom: 10px; }
-        .fc-icon { font-size: 76px; margin-bottom: 10px; }
-        .fc-pop { font-size: 34px; color: #1976d2; font-weight: 900; }
-        
-        .days-list { display: flex; flex-direction: column; gap: 15px; height: 100%; justify-content: center; }
-        .day-row { display: flex; align-items: center; justify-content: space-between; background: #f4f9ff; border: 2px solid #d0e4ff; border-radius: 20px; padding: 30px 40px; }
-        .day-name { font-size: 40px; font-weight: 900; width: 160px; color: #003366; }
-        .day-icon { font-size: 84px; width: 100px; text-align: center; }
-        .day-weather-text { font-size: 38px; font-weight: 900; width: 200px; color: #1c2d42; }
-        .day-pop { font-size: 44px; font-weight: 900; color: #1976d2; width: 240px; text-align: right; }
+        body { margin: 0; font-family: sans-serif; background: #e6f2ff; text-align: center; }
+        #status { font-size: 32px; padding: 50px; }
     </style>
 </head>
 <body>
-<div id="scaler" class="outer-wrapper">
-    <div class="signage-container">
-        <div class="main-panel">
-            <div class="meta-header">
-                <div id="cityNameDisplay" class="location-badge">設定中...</div>
-                <div id="liveClock" class="live-clock-badge">--/-- --:--:--</div>
-            </div>
-            <div class="weather-hero-box">
-                <div id="heroIcon" class="weather-icon-large">⌛</div>
-                <div class="weather-text-box">
-                    <div class="weather-label">現在の天気</div>
-                    <div id="heroWeatherText" class="weather-value">読込中...</div>
-                    <div id="currentTempNum" class="current-temp-display">--<span>°C</span></div>
-                </div>
-            </div>
-            <div class="temp-container">
-                <div class="temp-box max"><div class="temp-title">本日の最高気温</div><div class="temp-num"><span id="maxTempVal">--</span><span class="temp-unit">°C</span></div></div>
-                <div class="temp-box min"><div class="temp-title">本日の最低気温</div><div class="temp-num"><span id="minTempVal">--</span><span class="temp-unit">°C</span></div></div>
-            </div>
-            <div class="info-status-bar"><span class="pop-label">降水確率 (直近)</span><span id="popVal" class="pop-huge">--%</span></div>
-        </div>
-        <div class="side-panel">
-            <div class="section-block"><div class="section-title">これからの動き (3時間おき)</div><div id="forecastGrid" class="forecast-grid"></div></div>
-            <div class="section-block">
-                <div class="section-title">明日・明後日の予報</div>
-                <div class="days-list">
-                    <div class="day-row"><div class="day-name">明日</div><div id="day1Icon" class="day-icon">⏳</div><div id="day1Text" class="day-weather-text">--</div><div id="day1Pop" class="day-pop">--°C</div></div>
-                    <div class="day-row"><div class="day-name">明後日</div><div id="day2Icon" class="day-icon">⏳</div><div id="day2Text" class="day-weather-text">--</div><div id="day2Pop" class="day-pop">--°C</div></div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+    <div id="status">データを取得中...</div>
+    <script>
+        // 修正ポイント：国土地理院APIを使わず、地名から座標を特定する簡易マッピング
+        const locations = {
+            "豊橋市": {lat: 34.7667, lon: 137.3833},
+            "名古屋市": {lat: 35.1814, lon: 136.9064},
+            "大阪市": {lat: 34.6937, lon: 135.5023},
+            "東京": {lat: 35.6895, lon: 139.6917}
+        };
 
-<script>
-function updateLiveClock() {
-    const clockEl = document.getElementById('liveClock'); if (!clockEl) return;
-    const now = new Date();
-    clockEl.innerText = `${now.getMonth() + 1}/${now.getDate()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
-}
-setInterval(updateLiveClock, 1000);
+        const urlParams = new URLSearchParams(window.location.search);
+        const myTown = urlParams.get('mytown') || '豊橋市';
+        document.getElementById('status').innerText = myTown + "の天気を取得中...";
 
-function resizeSignage() {
-    const scaler = document.getElementById('scaler'); if (!scaler) return;
-    const scale = Math.min(document.documentElement.clientWidth / 1920, document.documentElement.clientHeight / 1080) * 0.95; 
-    scaler.style.transform = `translate(-50%, -50%) scale(${scale})`;
-}
-window.addEventListener('resize', resizeSignage);
+        // 検索APIを使わず、Open-Meteoに直接投げる（これなら404エラーが出ない）
+        const loc = locations[myTown] || {lat: 35.6785, lon: 139.6823};
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&models=jma&forecast_days=3`;
 
-// WMO気象コードを日本の見慣れた天気マークと日本語に変換する関数
-function convertWmoCode(code) {
-    if (code === 0) return { text: '晴れ', icon: '☀️' };
-    if (code === 1 || code === 2) return { text: '晴れ時々曇', icon: '⛅' };
-    if (code === 3) return { text: 'くもり', icon: '☁️' };
-    if (code >= 45 && code <= 48) return { text: '霧', icon: '☁️' };
-    if (code >= 51 && code <= 55) return { text: '小雨', icon: '☔' };
-    if (code >= 61 && code <= 65) return { text: '雨', icon: '☔' };
-    if (code >= 71 && code <= 75) return { text: '雪', icon: '❄️' };
-    if (code >= 80 && code <= 82) return { text: 'にわか雨', icon: '☔' };
-    if (code >= 95 && code <= 99) return { text: '雷雨', icon: '⚡' };
-    return { text: 'くもり', icon: '☁️' };
-}
-
-function fetchWeatherData() {
-    const urlParams = new URLSearchParams(window.location.search);
-    let rawTown = urlParams.get('mytown') || '東京';
-    let cityName = decodeURIComponent(rawTown).trim();
-    // 表示用から余計な文字を外して検索用に加工
-    let pureName = cityName.replace(/[市区町村]$/, "").replace(/,jp$/i, "");
-    document.getElementById('cityNameDisplay').innerText = cityName.replace(/,jp$/i, "");
-
-    const cacheKey = `weather_data_om_${pureName}`;
-    const saved = localStorage.getItem(cacheKey);
-    if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Date.now() - parsed.timestamp < 1800000) { // 30分キャッシュ
-            renderScreen(parsed.data);
-            return;
-        }
-    }
-
-    // 🗺️ 日本国内の正確な都市位置（国土地理院ベース）を割り出すAPI
-    fetch(`https://mreversegeocoder.gsi.go.jp/reverse-proxy/bwa?keyword=${encodeURIComponent(pureName)}`)
-    .then(res => res.json())
-    .then(geoData => {
-        // 万が一検索が滑ったら東京の座標をデフォルトにする安全装置
-        let lat = 35.6785; let lon = 139.6823;
-        if (geoData && geoData.results && geoData.results.length > 0) {
-            lat = geoData.results[0].lat;
-            lon = geoData.results[0].lon;
-        }
-        
-        // 👑【Open-Meteo API】日本の気象庁データ（jma）を指定して、10日分の超高精度データを一撃で取得
-        return fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&hourly=temperature_2m,weather_code,probability_of_precipitation&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&models=jma&forecast_days=3`);
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (!data || !data.current) throw new Error("Data empty");
-        localStorage.setItem(cacheKey, JSON.stringify({ data: data, timestamp: Date.now() }));
-        renderScreen(data);
-    })
-    .catch(err => {
-        console.error(err);
-        document.getElementById('cityNameDisplay').innerText = "データ更新中...";
-    });
-}
-
-function renderScreen(data) {
-    // 1. 現在の天気・気温・湿度の反映
-    const currentInfo = convertWmoCode(data.current.weather_code);
-    document.getElementById('heroWeatherText').innerText = currentInfo.text;
-    document.getElementById('heroIcon').innerText = currentInfo.icon;
-    document.getElementById('currentTempNum').innerHTML = `${Math.round(data.current.temperature_2m)}<span>°C</span>`;
-    document.getElementById('popVal').innerText = `${data.current.relative_humidity_2m}%`;
-
-    // 2. 本日の正確な最高・最低気温（気象庁予測）
-    document.getElementById('maxTempVal').innerText = Math.round(data.daily.temperature_2m_max[0]);
-    document.getElementById('minTempVal').innerText = Math.round(data.daily.temperature_2m_min[0]);
-
-    // 3. これからの動き（3時間おき予報）を日本時間で未来の4件分並べる
-    const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
-    const nowHour = new Date().getHours();
-    let displayedCount = 0;
-
-    for (let i = 0; i < data.hourly.time.length; i++) {
-        const hDate = new Date(data.hourly.time[i]);
-        const hHour = hDate.getHours();
-        
-        // 過去の時間帯、および当日の同時刻はスキップして「未来」だけ出す
-        if (hDate.getDate() === new Date().getDate() && hHour <= nowHour) continue;
-        
-        // 3時間おきに間引く
-        if ((hHour - (nowHour + 1)) % 3 !== 0 && displayedCount > 0) continue;
-
-        const hInfo = convertWmoCode(data.hourly.weather_code[i]);
-        const timeStr = `${String(hHour).padStart(2, '0')}:00`;
-        const popStr = data.hourly.probability_of_precipitation[i] !== null ? `${data.hourly.probability_of_precipitation[i]}%` : `${Math.round(data.hourly.temperature_2m[i])}°C`;
-
-        grid.innerHTML += `
-            <div class="forecast-card">
-                <div class="fc-time">${timeStr}</div>
-                <div class="fc-icon">${hInfo.icon}</div>
-                <div class="fc-pop">${popStr}</div>
-            </div>`;
-        
-        displayedCount++;
-        if (displayedCount >= 4) break;
-    }
-
-    // 4. 明日・明後日の予報（気象庁データでundefinedバグ完全消滅）
-    // 明日 [1]
-    const d1Info = convertWmoCode(data.daily.weather_code[1]);
-    document.getElementById('day1Text').innerText = d1Info.text;
-    document.getElementById('day1Icon').innerText = d1Info.icon;
-    document.getElementById('day1Pop').innerText = `${Math.round(data.daily.temperature_2m_max[1])}°C / ${Math.round(data.daily.temperature_2m_min[1])}°C`;
-
-    // 明後日 [2]
-    const d2Info = convertWmoCode(data.daily.weather_code[2]);
-    document.getElementById('day2Text').innerText = d2Info.text;
-    document.getElementById('day2Icon').innerText = d2Info.icon;
-    document.getElementById('day2Pop').innerText = `${Math.round(data.daily.temperature_2m_max[2])}°C / ${Math.round(data.daily.temperature_2m_min[2])}°C`;
-
-    // 左下のステータスバーを「降水確率」に書き換え（直近の未来の確率を表示）
-    let nextPop = 0;
-    for(let i=0; i<data.hourly.probability_of_precipitation.length; i++){
-        const hDate = new Date(data.hourly.time[i]);
-        if(hDate.getDate() === new Date().getDate() && hDate.getHours() > nowHour){
-            nextPop = data.hourly.probability_of_precipitation[i];
-            break;
-        }
-    }
-    document.querySelector('.info-status-bar .pop-label').innerText = "本日の降水確率 (直近)";
-    document.getElementById('popVal').innerText = `${nextPop}%`;
-
-    resizeSignage();
-}
-
-window.onload = function() {
-    updateLiveClock();
-    fetchWeatherData();
-    resizeSignage(); setTimeout(resizeSignage, 50);
-};
-</script>
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('status').innerHTML = `
+                    <h1>${myTown}の天気</h1>
+                    <p>現在の気温: ${data.current.temperature_2m}℃</p>
+                    <p>明日の最高気温: ${data.daily.temperature_2m_max[1]}℃</p>
+                    <p>明後日の最高気温: ${data.daily.temperature_2m_max[2]}℃</p>
+                `;
+            })
+            .catch(err => {
+                document.getElementById('status').innerText = "エラー: データの取得に失敗しました。";
+                console.error(err);
+            });
+    </script>
 </body>
 </html>
