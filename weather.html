@@ -2,35 +2,39 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お天気サイネージ (最新安定版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>お天気サイネージ</title>
     <style>
-        /* ※以前のCSS設定をそのままここへコピーして使ってください */
-        body { font-family: sans-serif; background: #e6f2ff; }
+        body { margin: 0; padding: 50px; font-family: 'Helvetica Neue', sans-serif; background: #e6f2ff; color: #1c2d42; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 24px; border: 3px solid #b3d1ff; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        h1 { font-size: 48px; color: #003366; }
+        .temp-row { font-size: 32px; margin: 20px 0; padding: 15px; border-bottom: 1px solid #eee; }
     </style>
 </head>
 <body>
-    <div id="content">データを読み込んでいます...</div>
+    <div class="container" id="signage-body">
+        <h1>お天気情報</h1>
+        <div id="weather-content">読み込み中...</div>
+    </div>
 
     <script>
-        // 緯度経度は「豊橋」に固定しています。必要に応じて書き換えてください。
+        // 【通信安定版ロジック】
         const lat = 34.7667; 
         const lon = 137.3833;
-        
-        // 【重要】エラーの原因だった models=jma を削除しました
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&forecast_days=3`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=3`;
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                // ここで以前のデザインパーツにデータを流し込みます
-                document.getElementById('content').innerHTML = `
-                    <h1>現在の気温: ${data.current.temperature_2m}℃</h1>
-                    <p>明日の最高気温: ${data.daily.temperature_2m_max[1]}℃</p>
-                    <p>明後日の最高気温: ${data.daily.temperature_2m_max[2]}℃</p>
+                // ここで以前のデザインとデータを合体させています
+                document.getElementById('weather-content').innerHTML = `
+                    <div class="temp-row">現在の気温: ${data.current.temperature_2m}℃</div>
+                    <div class="temp-row">明日の最高気温: ${data.daily.temperature_2m_max[1]}℃</div>
+                    <div class="temp-row">明後日の最高気温: ${data.daily.temperature_2m_max[2]}℃</div>
                 `;
             })
             .catch(err => {
-                document.getElementById('content').innerText = "通信エラーが発生しました";
+                document.getElementById('weather-content').innerText = "エラー: データの取得に失敗しました。";
             });
     </script>
 </body>
