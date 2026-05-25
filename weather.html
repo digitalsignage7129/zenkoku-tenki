@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージシステム (OWM高精度・日本語完全対応版)</title>
+    <title>お天気サイネージシステム (高精度・完全修正版)</title>
     <style>
         html, body {
             margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important;
@@ -148,47 +148,59 @@ window.onload = function() {
     const urlParams = new URLSearchParams(window.location.search);
     
     let rawTown = urlParams.get('mytown') || '東京';
-    let cityName = decodeURIComponent(rawTown);
+    let cityName = decodeURIComponent(rawTown).trim();
     document.getElementById('cityNameDisplay').innerText = cityName;
 
-    // 💡 あなたの「本物のAPIキー」をがっちり固定
     const API_KEY = '6b80c00ad3da39082b7e25c449d07c51'; 
 
-    // 👑👑【漢字エラーを物理的に消し去る2段階API接続ロジック】
-    // まず最初に入力された漢字（例：豊橋市）を「緯度・経度」に安全に100%翻訳するAPI（Geocoding API）を挟みます。
-    fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityName)},JP&limit=1&appid=${API_KEY}`)
+    // 💡👑【修正1：那覇エラーを根絶する2段階リトライ検索】
+    let pureName = cityName.replace(/[市区町村]$/, "");
+    
+    // 1回目：市などを削った名前（名古屋・豊橋など用）で検索
+    fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(pureName)},JP&limit=1&appid=${API_KEY}`)
     .then(res => res.json())
     .then(geoData => {
         if (!geoData || geoData.length === 0) {
-            // 万が一、市区町村名で引っかからなかった場合の安全用バックアップ処理
-            let fallbackCity = cityName.replace(/[市区町村]$/, "");
-            return fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(fallbackCity)},JP&limit=1&appid=${API_KEY}`).then(res => res.json());
+            // 2回目：削ってダメなら元の名前（那覇市など用）で再検索
+            return fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityName)},JP&limit=1&appid=${API_KEY}`).then(res => res.json());
         }
         return geoData;
     })
     .then(finalGeo => {
         if (!finalGeo || finalGeo.length === 0) throw new Error("Location not found");
         
-        // 翻訳に成功した「絶対不変の緯度(lat)・経度(lon)」を抽出
         const lat = finalGeo[0].lat;
         const lon = finalGeo[0].lon;
 
-        // 抽出した緯度・経度を使って、天気をピンポイントで引き抜く（これなら漢字表記の壁を完全スルーできます）
         return Promise.all([
             fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
             fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
         ]);
     })
     .then(([currentData, forecastData]) => {
-        // あとは安全にデータを画面にはめ込むだけ
+        // 現在の天気
         const currentInfo = getWeatherEmoji(currentData.weather[0].icon, currentData.weather[0].description);
         document.getElementById('heroWeatherText').innerText = currentInfo.text;
         document.getElementById('heroIcon').innerText = currentInfo.icon;
-        
-        document.getElementById('maxTempVal').innerText = Math.round(currentData.main.temp_max);
-        document.getElementById('minTempVal').innerText = Math.round(currentData.main.temp_min);
         document.getElementById('popVal').innerText = `${currentData.main.humidity}%`;
 
+        // 💡👑【修正2：本物の最高・最低気温のリアルタイム自動算出】
+        // 3時間おき予報データ（最初の8件＝24時間分）の中から、今日の絶対的な最高・最低気温を計算
+        let todayTemps = [];
+        for (let i = 0; i < 8; i++) {
+            if (forecastData.list[i]) {
+                todayTemps.push(forecastData.list[i].main.temp_max);
+                todayTemps.push(forecastData.list[i].main.temp_min);
+            }
+        }
+        // もしデータがあればその中から最大値・最小値を採用、なければ現在の数値を予備で使う
+        let absoluteMax = todayTemps.length ? Math.max(...todayTemps) : currentData.main.temp_max;
+        let absoluteMin = todayTemps.length ? Math.min(...todayTemps) : currentData.main.temp_min;
+
+        document.getElementById('maxTempVal').innerText = Math.round(absoluteMax);
+        document.getElementById('minTempVal').innerText = Math.round(absoluteMin);
+
+        // 3時間おきの詳細予報生成
         const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
         for (let i = 0; i < 4; i++) {
             const f = forecastData.list[i];
@@ -202,6 +214,7 @@ window.onload = function() {
                 </div>`;
         }
 
+        // 明日・明後日の予報反映
         const day1 = forecastData.list[8]; 
         const day1Info = getWeatherEmoji(day1.weather[0].icon, day1.weather[0].description);
         document.getElementById('day1Text').innerText = day1Info.text;
@@ -218,7 +231,7 @@ window.onload = function() {
     })
     .catch(err => {
         console.error(err);
-        document.getElementById('cityNameDisplay').innerText = "通信エラー(APIキー有効化をお待ちください)";
+        document.getElementById('cityNameDisplay').innerText = "都市名エラー（正しい市町村名を入力してください）";
     });
 
     resizeSignage(); setTimeout(resizeSignage, 50);
