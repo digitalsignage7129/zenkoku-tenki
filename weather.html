@@ -3,21 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージシステム (30分自動更新タイマー内蔵版)</title>
+    <title>お天気サイネージ (超節約・15秒ループ対応版)</title>
     <style>
-        html, body {
-            margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important;
-            background-color: #e6f2ff; overflow: hidden !important; position: relative;
-        }
-        .outer-wrapper {
-            width: 1920px; height: 1080px; position: absolute; top: 50%; left: 50%;
-            transform-origin: center center; transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box;
-        }
-        .signage-container {
-            display: flex; width: 1920px; height: 1080px; box-sizing: border-box;
-            background: linear-gradient(180deg, #e6f2ff 0%, #cce6ff 100%); color: #1c2d42; padding: 50px 60px; gap: 50px;
-            font-family: 'Helvetica Neue', Arial, 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
-        }
+        html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; background-color: #e6f2ff; overflow: hidden !important; position: relative; }
+        .outer-wrapper { width: 1920px; height: 1080px; position: absolute; top: 50%; left: 50%; transform-origin: center center; transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box; }
+        .signage-container { display: flex; width: 1920px; height: 1080px; box-sizing: border-box; background: linear-gradient(180deg, #e6f2ff 0%, #cce6ff 100%); color: #1c2d42; padding: 50px 60px; gap: 50px; font-family: 'Helvetica Neue', Arial, 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif; }
         .main-panel { width: 800px; height: 980px; display: flex; flex-direction: column; justify-content: space-between; }
         .meta-header { display: flex; flex-direction: column; gap: 15px; border-bottom: 4px solid #1c2d42; padding-bottom: 25px; }
         .location-badge { font-size: 64px; font-weight: 900; color: #003366; display: flex; align-items: center; gap: 15px; }
@@ -28,7 +18,6 @@
         .weather-text-box { display: flex; flex-direction: column; }
         .weather-label { font-size: 34px; font-weight: 900; color: #4a607a; letter-spacing: 2px; }
         .weather-value { font-size: 115px; font-weight: 900; line-height: 1.1; color: #002244; }
-        
         .temp-container { display: flex; gap: 25px; margin-bottom: 20px; }
         .temp-box { flex: 1; padding: 25px; border-radius: 20px; border: 3px solid #b3d1ff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,51,102,0.05); }
         .temp-box.max { background: #fff5f5; border-color: #ffcccc; }
@@ -38,7 +27,6 @@
         .temp-box.min .temp-title { color: #3366cc; }
         .temp-num { font-size: 72px; font-weight: 900; font-variant-numeric: tabular-nums; color: #1c2d42; }
         .temp-unit { font-size: 36px; font-weight: 900; margin-left: 2px; }
-
         .info-status-bar { padding: 45px 40px; border-radius: 24px; background: #ffffff; font-size: 46px; font-weight: 900; border: 3px solid #b3d1ff; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 15px 35px rgba(0,51,102,0.08); }
         .pop-label { font-size: 48px; font-weight: 900; color: #003366; }
         .pop-huge { color: #1976d2; font-size: 84px; font-weight: 900; font-variant-numeric: tabular-nums; }
@@ -59,7 +47,6 @@
     </style>
 </head>
 <body>
-
 <div id="scaler" class="outer-wrapper">
     <div class="signage-container">
         <div class="main-panel">
@@ -74,49 +61,26 @@
                     <div id="heroWeatherText" class="weather-value">読込中...</div>
                 </div>
             </div>
-
             <div class="temp-container">
-                <div class="temp-box max">
-                    <div class="temp-title">本日の最高気温</div>
-                    <div class="temp-num"><span id="maxTempVal">--</span><span class="temp-unit">°C</span></div>
-                </div>
-                <div class="temp-box min">
-                    <div class="temp-title">本日の最低気温</div>
-                    <div class="temp-num"><span id="minTempVal">--</span><span class="temp-unit">°C</span></div>
-                </div>
+                <div class="temp-box max"><div class="temp-title">本日の最高気温</div><div class="temp-num"><span id="maxTempVal">--</span><span class="temp-unit">°C</span></div></div>
+                <div class="temp-box min"><div class="temp-title">本日の最低気温</div><div class="temp-num"><span id="minTempVal">--</span><span class="temp-unit">°C</span></div></div>
             </div>
-
-            <div class="info-status-bar">
-                <span class="pop-label">現在の湿度</span>
-                <span id="popVal" class="pop-huge">--%</span>
-            </div>
+            <div class="info-status-bar"><span class="pop-label">現在の湿度</span><span id="popVal" class="pop-huge">--%</span></div>
         </div>
-
         <div class="side-panel">
-            <div class="section-block">
-                <div class="section-title">これからの動き (3時間おき)</div>
-                <div id="forecastGrid" class="forecast-grid"></div>
-            </div>
+            <div class="section-block"><div class="section-title">これからの動き (3時間おき)</div><div id="forecastGrid" class="forecast-grid"></div></div>
             <div class="section-block">
                 <div class="section-title">明日・明後日の予報</div>
                 <div class="days-list">
-                    <div class="day-row">
-                        <div class="day-name">明日</div>
-                        <div id="day1Icon" class="day-icon">⏳</div>
-                        <div id="day1Text" class="day-weather-text">--</div>
-                        <div id="day1Pop" class="day-pop">--°C</div>
-                    </div>
-                    <div class="day-row">
-                        <div class="day-name">明後日</div>
-                        <div id="day2Icon" class="day-icon">⏳</div>
-                        <div id="day2Text" class="day-weather-text">--</div>
-                        <div id="day2Pop" class="day-pop">--°C</div>
-                    </div>
+                    <div class="day-row"><div class="day-name">明日</div><div id="day1Icon" class="day-icon">⏳</div><div id="day1Text" class="day-weather-text">--</div><div id="day1Pop" class="day-pop">--°C</div></div>
+                    <div class="day-row"><div class="day-name">明後日</div><div id="day2Icon" class="day-icon">⏳</div><div id="day2Text" class="day-weather-text">--</div><div id="day2Pop" class="day-pop">--°C</div></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<iframe id="apiWorker" style="display:none;"></iframe>
 
 <script>
 function updateLiveClock() {
@@ -143,90 +107,60 @@ function getWeatherEmoji(iconCode, description) {
     return { text: description, icon: '☁️' };
 }
 
-// 💡👑【神アプデ：30分おき気象データ自動クリーン更新ロジック】
-function fetchWeatherData() {
+window.onload = function() {
+    updateLiveClock();
     const urlParams = new URLSearchParams(window.location.search);
     let rawTown = urlParams.get('mytown') || '東京';
     let cityName = decodeURIComponent(rawTown).trim();
     document.getElementById('cityNameDisplay').innerText = cityName;
 
-    const API_KEY = '6b80c00ad3da39082b7e25c449d07c51'; 
-    let pureName = cityName.replace(/[市区町村]$/, "");
-    
-    fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(pureName)},JP&limit=1&appid=${API_KEY}`)
-    .then(res => res.json())
-    .then(geoData => {
-        if (!geoData || geoData.length === 0) {
-            return fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityName)},JP&limit=1&appid=${API_KEY}`).then(res => res.json());
-        }
-        return geoData;
-    })
-    .then(finalGeo => {
-        if (!finalGeo || finalGeo.length === 0) throw new Error("Location not found");
-        const lat = finalGeo[0].lat;
-        const lon = finalGeo[0].lon;
-        return Promise.all([
-            fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
-            fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
-        ]);
-    })
-    .then(([currentData, forecastData]) => {
-        const currentInfo = getWeatherEmoji(currentData.weather[0].icon, currentData.weather[0].description);
+    // 👑 見えない裏方(api.html)を同じ都市名パラメータ付きで起動
+    document.getElementById('apiWorker').src = `api.html?mytown=${encodeURIComponent(cityName)}`;
+
+    // 👑 ネットではなく、端末内の保存データを読み込む（15秒リロード対応）
+    const savedData = localStorage.getItem(`weather_data_${cityName}`);
+    if (savedData) {
+        const { current, forecast } = JSON.parse(savedData);
+        
+        const currentInfo = getWeatherEmoji(current.weather[0].icon, current.weather[0].description);
         document.getElementById('heroWeatherText').innerText = currentInfo.text;
         document.getElementById('heroIcon').innerText = currentInfo.icon;
-        document.getElementById('popVal').innerText = `${currentData.main.humidity}%`;
+        document.getElementById('popVal').innerText = `${current.main.humidity}%`;
 
         let todayTemps = [];
         for (let i = 0; i < 8; i++) {
-            if (forecastData.list[i]) {
-                todayTemps.push(forecastData.list[i].main.temp_max);
-                todayTemps.push(forecastData.list[i].main.temp_min);
+            if (forecast.list[i]) {
+                todayTemps.push(forecast.list[i].main.temp_max);
+                todayTemps.push(forecast.list[i].main.temp_min);
             }
         }
-        let absoluteMax = todayTemps.length ? Math.max(...todayTemps) : currentData.main.temp_max;
-        let absoluteMin = todayTemps.length ? Math.min(...todayTemps) : currentData.main.temp_min;
+        let absoluteMax = todayTemps.length ? Math.max(...todayTemps) : current.main.temp_max;
+        let absoluteMin = todayTemps.length ? Math.min(...todayTemps) : current.main.temp_min;
         document.getElementById('maxTempVal').innerText = Math.round(absoluteMax);
         document.getElementById('minTempVal').innerText = Math.round(absoluteMin);
 
         const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
         for (let i = 0; i < 4; i++) {
-            const f = forecastData.list[i];
+            const f = forecast.list[i];
             const fInfo = getWeatherEmoji(f.weather[0].icon, f.weather[0].description);
             const timeStr = f.dt_txt.substring(11, 16);
-            grid.innerHTML += `
-                <div class="forecast-card">
-                    <div class="fc-time">${timeStr}</div>
-                    <div class="fc-icon">${fInfo.icon}</div>
-                    <div class="fc-pop">${Math.round(f.main.temp)}°C</div>
-                </div>`;
+            grid.innerHTML += `<div class="forecast-card"><div class="fc-time">${timeStr}</div><div class="fc-icon">${fInfo.icon}</div><div class="fc-pop">${Math.round(f.main.temp)}°C</div></div>`;
         }
 
-        const day1 = forecastData.list[8]; 
+        const day1 = forecast.list[8]; 
         const day1Info = getWeatherEmoji(day1.weather[0].icon, day1.weather[0].description);
         document.getElementById('day1Text').innerText = day1Info.text;
         document.getElementById('day1Icon').innerText = day1Info.icon;
         document.getElementById('day1Pop').innerText = `${Math.round(day1.main.temp_max)}°C / ${Math.round(day1.main.temp_min)}°C`;
 
-        const day2 = forecastData.list[16];
+        const day2 = forecast.list[16];
         const day2Info = getWeatherEmoji(day2.weather[0].icon, day2.weather[0].description);
         document.getElementById('day2Text').innerText = day2Info.text;
         document.getElementById('day2Icon').innerText = day2Info.icon;
         document.getElementById('day2Pop').innerText = `${Math.round(day2.main.temp_max)}°C / ${Math.round(day2.main.temp_min)}°C`;
-
-        resizeSignage();
-    })
-    .catch(err => {
-        console.error(err);
-        document.getElementById('cityNameDisplay').innerText = "都市名エラー（正しい市町村名を入力してください）";
-    });
-}
-
-window.onload = function() {
-    updateLiveClock();
-    fetchWeatherData(); // 初回読み込み
-    
-    // 👑 サイト自体はリロードせず、30分(1800000ミリ秒)ごとに天気データだけを裏で最新にするタイマー
-    setInterval(fetchWeatherData, 1800000); 
+    } else {
+        document.getElementById('heroWeatherText').innerText = "データ準備中...(次の周回で表示されます)";
+    }
 
     resizeSignage(); setTimeout(resizeSignage, 50);
 };
