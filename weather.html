@@ -2,62 +2,57 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お天気サイネージ</title>
+    <title>Weather Signage</title>
     <style>
-        body { margin: 0; background: #002244; color: white; font-family: sans-serif; text-align: center; }
-        .main-card { width: 80%; margin: 20px auto; padding: 30px; background: #003366; border-radius: 20px; }
-        .forecast-container { display: flex; justify-content: center; gap: 20px; padding: 20px; }
-        .fc-box { background: #004488; padding: 15px; border-radius: 15px; width: 100px; }
+        /* 16:9の画面全体に最適化したデザイン */
+        body { margin: 0; background: #0a192f; color: #e6f1ff; font-family: sans-serif; overflow: hidden; }
+        .wrapper { width: 1920px; height: 1080px; padding: 60px; box-sizing: border-box; display: flex; flex-direction: column; }
+        
+        .header { font-size: 80px; margin-bottom: 40px; border-bottom: 4px solid #64ffda; display: inline-block; }
+        
+        .main-content { display: flex; gap: 40px; flex-grow: 1; }
+        .current-box { background: #112240; border-radius: 30px; padding: 40px; width: 40%; text-align: center; border: 2px solid #233554; }
+        
+        .forecast-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; width: 60%; }
+        .fc-item { background: #112240; border-radius: 20px; padding: 20px; text-align: center; border: 2px solid #233554; }
+        .icon { font-size: 80px; margin: 10px 0; }
     </style>
 </head>
 <body>
-    <div class="main-card">
-        <h1 id="title">天気を読み込み中...</h1>
-        <div id="current-info" style="font-size: 30px;">しばらくお待ちください</div>
+    <div class="wrapper">
+        <div class="header" id="city-name">読み込み中...</div>
+        <div class="main-content">
+            <div class="current-box" id="current">データ取得中...</div>
+            <div class="forecast-grid" id="forecast"></div>
+        </div>
     </div>
-    <div class="forecast-container" id="forecast-area"></div>
 
     <script>
-        // URLパラメータ ?mytown=豊橋市 などで都市を切り替え可能
         const urlParams = new URLSearchParams(window.location.search);
         const myTown = urlParams.get('mytown') || '豊橋市';
-        
-        // 都市ごとの座標リスト（ここに追加していけば全国どこでも対応可能）
-        const locations = {
-            "豊橋市": {lat: 34.7667, lon: 137.3833},
-            "枚方市": {lat: 34.8153, lon: 135.6567},
-            "名古屋市": {lat: 35.1814, lon: 136.9064},
-            "大阪市": {lat: 34.6937, lon: 135.5023}
-        };
-
+        const locations = { "豊橋市": {lat: 34.7667, lon: 137.3833}, "枚方市": {lat: 34.8153, lon: 135.6567} };
         const loc = locations[myTown] || {lat: 34.7667, lon: 137.3833};
-        document.getElementById('title').innerText = myTown + "の天気";
 
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code&timezone=Asia%2FTokyo&forecast_days=3`;
+        document.getElementById('city-name').innerText = myTown + "の天気";
 
-        function getIcon(code) {
-            if(code < 2) return "☀️";
-            if(code < 50) return "☁️";
-            return "☔";
-        }
-
-        fetch(url)
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&timezone=Asia%2FTokyo&forecast_days=1`)
             .then(res => res.json())
             .then(data => {
-                document.getElementById('current-info').innerHTML = 
-                    `${getIcon(data.current.weather_code)} 気温: ${data.current.temperature_2m}℃ / 湿度: ${data.current.relative_humidity_2m}%`;
-
+                const getIcon = (c) => c < 2 ? "☀️" : (c < 50 ? "☁️" : "☔");
+                
+                document.getElementById('current').innerHTML = 
+                    `<div class="icon">${getIcon(data.current.weather_code)}</div>
+                     <div style="font-size:120px; font-weight:bold;">${data.current.temperature_2m}℃</div>`;
+                
                 let html = "";
-                for(let i=1; i<=5; i++) {
-                    let idx = i * 3;
-                    html += `
-                        <div class="fc-box">
-                            <div>${idx}h後</div>
-                            <div style="font-size:40px;">${getIcon(data.hourly.weather_code[idx])}</div>
-                            <div>${data.hourly.temperature_2m[idx]}℃</div>
-                        </div>`;
+                for(let i=1; i<=8; i++) {
+                    html += `<div class="fc-item">
+                                <div style="font-size:30px;">${i*3}時間後</div>
+                                <div class="icon">${getIcon(data.hourly.weather_code[i*3])}</div>
+                                <div style="font-size:40px;">${data.hourly.temperature_2m[i*3]}℃</div>
+                             </div>`;
                 }
-                document.getElementById('forecast-area').innerHTML = html;
+                document.getElementById('forecast').innerHTML = html;
             });
     </script>
 </body>
