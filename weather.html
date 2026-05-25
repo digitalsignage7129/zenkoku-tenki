@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージ (超節約・15秒ループ対応版)</title>
+    <title>お天気サイネージ (超節約・自動データ更新判定版)</title>
     <style>
         html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; background-color: #e6f2ff; overflow: hidden !important; position: relative; }
         .outer-wrapper { width: 1920px; height: 1080px; position: absolute; top: 50%; left: 50%; transform-origin: center center; transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box; }
@@ -80,8 +80,6 @@
     </div>
 </div>
 
-<iframe id="apiWorker" style="display:none;"></iframe>
-
 <script>
 function updateLiveClock() {
     const clockEl = document.getElementById('liveClock'); if (!clockEl) return;
@@ -107,6 +105,88 @@ function getWeatherEmoji(iconCode, description) {
     return { text: description, icon: '☁️' };
 }
 
+// 👑 ネットから最新データを強制取得してローカルに叩き込む関数
+function forceFetchNetworkData(cityName, callback) {
+    const API_KEY = '6b80c00ad3da39082b7e25c449d07c51';
+    let pureName = cityName.replace(/[市区町村]$/, "");
+
+    fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(pureName)},JP&limit=1&appid=${API_KEY}`)
+    .then(res => res.json())
+    .then(geoData => {
+        if (!geoData || geoData.length === 0) {
+            return fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityName)},JP&limit=1&appid=${API_KEY}`).then(res => res.json());
+        }
+        return geoData;
+    })
+    .then(finalGeo => {
+        if (!finalGeo || finalGeo.length === 0) throw new Error("Location not found");
+        const lat = finalGeo[0].lat; const lon = finalGeo[0].lon;
+        return Promise.all([
+            fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
+            fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
+        ]);
+    })
+    .then(([current, forecast]) => {
+        const cacheData = { current, forecast, timestamp: Date.now() };
+        localStorage.setItem(`weather_data_${cityName}`, JSON.stringify(cacheData));
+        callback(cacheData);
+    })
+    .catch(err => {
+        console.error(err);
+        document.getElementById('cityNameDisplay').innerText = "最新データ取得エラー";
+    });
+}
+
+function renderScreen(data) {
+    const { current, forecast } = data;
+    
+    const currentInfo = getWeatherEmoji(current.weather[0].icon, current.weather[0].description);
+    document.getElementById('heroWeatherText').innerText = currentInfo.text;
+    document.getElementById('heroIcon').innerText = currentInfo.icon;
+    document.getElementById('popVal').innerText = `${current.main.humidity}%`;
+
+    let todayTemps = [];
+    for (let i = 0; i < 8; i++) {
+        if (forecast.list[i]) {
+            todayTemps.push(forecast.list[i].main.temp_max);
+            todayTemps.push(forecast.list[i].main.temp_min);
+        }
+    }
+    let absoluteMax = todayTemps.length ? Math.max(...todayTemps) : current.main.temp_max;
+    let absoluteMin = todayTemps.length ? Math.min(...todayTemps) : current.main.temp_min;
+    document.getElementById('maxTempVal').innerText = Math.round(absoluteMax);
+    document.getElementById('minTempVal').innerText = Math.round(absoluteMin);
+
+    const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
+    // 直近の予測時刻を表示（過去の時間はスキップして「これからの時間」を出すよう自動選別）
+    let count = 0;
+    const nowTs = Date.now() / 1000;
+    for (let i = 0; i < forecast.list.length; i++) {
+        const f = forecast.list[i];
+        if (f.dt < nowTs - 7200) continue; // 2時間以上前の予報はスキップ
+        
+        const fInfo = getWeatherEmoji(f.weather[0].icon, f.weather[0].description);
+        const timeStr = f.dt_txt.substring(11, 16);
+        grid.innerHTML += `<div class="forecast-card"><div class="fc-time">${timeStr}</div><div class="fc-icon">${fInfo.icon}</div><div class="fc-pop">${Math.round(f.main.temp)}°C</div></div>`;
+        count++;
+        if (count >= 4) break;
+    }
+
+    const day1 = forecast.list[8]; 
+    const day1Info = getWeatherEmoji(day1.weather[0].icon, day1.weather[0].description);
+    document.getElementById('day1Text').innerText = day1Info.text;
+    document.getElementById('day1Icon').innerText = day1Info.icon;
+    document.getElementById('day1Pop').innerText = `${Math.round(day1.main.temp_max)}°C / ${Math.round(day1.main.temp_min)}°C`;
+
+    const day2 = forecast.list[16];
+    const day2Info = getWeatherEmoji(day2.weather[0].icon, day2.weather[0].description);
+    document.getElementById('day2Text').innerText = day2Info.text;
+    document.getElementById('day2Icon').innerText = day2Icon.icon;
+    document.getElementById('day2Pop').innerText = `${Math.round(day2.main.temp_max)}°C / ${Math.round(day2.main.temp_min)}°C`;
+    
+    resizeSignage();
+}
+
 window.onload = function() {
     updateLiveClock();
     const urlParams = new URLSearchParams(window.location.search);
@@ -114,52 +194,24 @@ window.onload = function() {
     let cityName = decodeURIComponent(rawTown).trim();
     document.getElementById('cityNameDisplay').innerText = cityName;
 
-    // 👑 見えない裏方(api.html)を同じ都市名パラメータ付きで起動
-    document.getElementById('apiWorker').src = `api.html?mytown=${encodeURIComponent(cityName)}`;
+    // 👑【今回の核心：データ賞味期限チェックロジック】
+    const saved = localStorage.getItem(`weather_data_${cityName}`);
+    const THIRTY_MINUTES = 1800000; // 30分（ミリ秒）
 
-    // 👑 ネットではなく、端末内の保存データを読み込む（15秒リロード対応）
-    const savedData = localStorage.getItem(`weather_data_${cityName}`);
-    if (savedData) {
-        const { current, forecast } = JSON.parse(savedData);
-        
-        const currentInfo = getWeatherEmoji(current.weather[0].icon, current.weather[0].description);
-        document.getElementById('heroWeatherText').innerText = currentInfo.text;
-        document.getElementById('heroIcon').innerText = currentInfo.icon;
-        document.getElementById('popVal').innerText = `${current.main.humidity}%`;
+    if (saved) {
+        const parsed = JSON.parse(saved);
+        const age = Date.now() - parsed.timestamp;
 
-        let todayTemps = [];
-        for (let i = 0; i < 8; i++) {
-            if (forecast.list[i]) {
-                todayTemps.push(forecast.list[i].main.temp_max);
-                todayTemps.push(forecast.list[i].main.temp_min);
-            }
+        if (age < THIRTY_MINUTES && age > 0) {
+            // 30分以内に保存された新鮮なデータなら、ネット通信せずそのまま即描画（0回通信）
+            renderScreen(parsed);
+        } else {
+            // 30分以上前の古いデータ、またはバグデータならゴミ箱にポイして強制再取得
+            forceFetchNetworkData(cityName, renderScreen);
         }
-        let absoluteMax = todayTemps.length ? Math.max(...todayTemps) : current.main.temp_max;
-        let absoluteMin = todayTemps.length ? Math.min(...todayTemps) : current.main.temp_min;
-        document.getElementById('maxTempVal').innerText = Math.round(absoluteMax);
-        document.getElementById('minTempVal').innerText = Math.round(absoluteMin);
-
-        const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
-        for (let i = 0; i < 4; i++) {
-            const f = forecast.list[i];
-            const fInfo = getWeatherEmoji(f.weather[0].icon, f.weather[0].description);
-            const timeStr = f.dt_txt.substring(11, 16);
-            grid.innerHTML += `<div class="forecast-card"><div class="fc-time">${timeStr}</div><div class="fc-icon">${fInfo.icon}</div><div class="fc-pop">${Math.round(f.main.temp)}°C</div></div>`;
-        }
-
-        const day1 = forecast.list[8]; 
-        const day1Info = getWeatherEmoji(day1.weather[0].icon, day1.weather[0].description);
-        document.getElementById('day1Text').innerText = day1Info.text;
-        document.getElementById('day1Icon').innerText = day1Info.icon;
-        document.getElementById('day1Pop').innerText = `${Math.round(day1.main.temp_max)}°C / ${Math.round(day1.main.temp_min)}°C`;
-
-        const day2 = forecast.list[16];
-        const day2Info = getWeatherEmoji(day2.weather[0].icon, day2.weather[0].description);
-        document.getElementById('day2Text').innerText = day2Info.text;
-        document.getElementById('day2Icon').innerText = day2Info.icon;
-        document.getElementById('day2Pop').innerText = `${Math.round(day2.main.temp_max)}°C / ${Math.round(day2.main.temp_min)}°C`;
     } else {
-        document.getElementById('heroWeatherText').innerText = "データ準備中...(次の周回で表示されます)";
+        // 貯金箱が空っぽ（初回）ならネットから取得
+        forceFetchNetworkData(cityName, renderScreen);
     }
 
     resizeSignage(); setTimeout(resizeSignage, 50);
