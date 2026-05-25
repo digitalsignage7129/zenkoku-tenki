@@ -2,67 +2,44 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お天気サイネージ (最終安定版)</title>
+    <title>お天気サイネージ</title>
     <style>
-        /* デザイン部分 */
-        body { margin: 0; padding: 50px; font-family: sans-serif; background: #e6f2ff; color: #1c2d42; }
-        .signage-container { display: flex; width: 100%; height: 900px; gap: 30px; }
-        .main-panel { width: 50%; background: white; padding: 40px; border-radius: 24px; border: 3px solid #b3d1ff; }
-        .side-panel { width: 50%; background: white; padding: 40px; border-radius: 24px; border: 3px solid #b3d1ff; }
-        .temp-row { font-size: 40px; margin: 20px 0; color: #003366; }
-        .forecast-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
-        .fc-card { background: #f4f9ff; padding: 15px; border-radius: 20px; text-align: center; }
+        body { margin: 0; padding: 20px; font-family: sans-serif; background: #e6f2ff; }
+        .grid { display: flex; gap: 20px; }
+        .panel { background: white; padding: 20px; border-radius: 20px; border: 2px solid #b3d1ff; }
     </style>
 </head>
 <body>
-    <div class="signage-container">
-        <div class="main-panel">
-            <h1>現在の天気</h1>
-            <div id="current-weather">データ取得中...</div>
-        </div>
-        <div class="side-panel">
-            <h1>3時間おき予報</h1>
-            <div id="forecast-grid" class="forecast-grid"></div>
-        </div>
+    <div class="grid">
+        <div class="panel" id="current">現在の天気: 読み込み中...</div>
+        <div class="panel" id="forecast">3時間おき予報: 読み込み中...</div>
     </div>
 
     <script>
-        // 豊橋市の座標
-        const lat = 34.7667; 
-        const lon = 137.3833;
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code,probability_of_precipitation&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=3`;
-
-        function getIcon(code) {
-            if(code == 0) return "☀️";
-            if(code < 3) return "⛅";
-            if(code < 50) return "☁️";
-            return "☔";
-        }
+        // パラメータを無視して、緯度経度を直接ハードコード
+        const lat = 34.8153; // 枚方市の緯度
+        const lon = 135.6567; // 枚方市の経度
+        
+        // 必要な情報だけを厳選した最小限のURL（これで400エラーを防ぎます）
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code&forecast_days=1&timezone=Asia%2FTokyo`;
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                // 現在の天気表示
-                document.getElementById('current-weather').innerHTML = `
-                    <div style="font-size:100px;">${getIcon(data.current.weather_code)}</div>
-                    <div class="temp-row">気温: ${data.current.temperature_2m}℃</div>
-                    <div class="temp-row">湿度: ${data.current.relative_humidity_2m}%</div>
+                document.getElementById('current').innerHTML = `
+                    <h3>現在の天気</h3>
+                    <p>気温: ${data.current.temperature_2m}℃</p>
+                    <p>湿度: ${data.current.relative_humidity_2m}%</p>
                 `;
                 
-                // 3時間おき予報の表示
-                let grid = document.getElementById('forecast-grid');
-                grid.innerHTML = "";
+                let forecastHtml = "<h3>3時間おき予報</h3>";
                 for(let i=0; i<8; i++) {
-                    grid.innerHTML += `
-                        <div class="fc-card">
-                            <div>${i*3}h後</div>
-                            <div style="font-size:40px;">${getIcon(data.hourly.weather_code[i*3])}</div>
-                            <div>${data.hourly.temperature_2m[i*3]}℃</div>
-                        </div>`;
+                    forecastHtml += `<div>${i*3}時間後: ${data.hourly.temperature_2m[i*3]}℃</div>`;
                 }
+                document.getElementById('forecast').innerHTML = forecastHtml;
             })
             .catch(err => {
-                document.getElementById('current-weather').innerText = "通信エラー発生。ネットワークを確認してください。";
+                document.getElementById('current').innerText = "通信エラー: " + err;
             });
     </script>
 </body>
