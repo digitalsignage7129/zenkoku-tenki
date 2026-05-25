@@ -2,66 +2,51 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お天気サイネージ</title>
-    <style>
-        body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; overflow: hidden; }
-        .wrapper { width: 1920px; height: 1080px; padding: 40px; box-sizing: border-box; }
-        .header { font-size: 80px; font-weight: bold; margin-bottom: 20px; }
-        .main-row { display: flex; gap: 20px; height: 400px; }
-        .current { flex: 1; background: rgba(255,255,255,0.1); border-radius: 30px; display: flex; align-items: center; justify-content: center; gap: 50px; font-size: 80px; }
-        .hourly-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin: 20px 0; }
-        .fc-card { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 20px; text-align: center; font-size: 28px; }
-        .daily-row { display: flex; gap: 20px; height: 250px; }
-        .daily-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 30px; padding: 20px; display: flex; align-items: center; justify-content: space-around; font-size: 40px; }
-    </style>
-</head>
+    <title>全自動お天気サイネージ</title>
+    </head>
 <body>
     <div class="wrapper">
         <div class="header" id="location-name">読み込み中...</div>
-        <div class="main-row"><div class="current" id="current">現在気温を取得中...</div></div>
+        <div class="main-row"><div class="current" id="current">場所を確認中...</div></div>
         <div class="hourly-row" id="hourly-forecast"></div>
         <div class="daily-row" id="daily-forecast"></div>
     </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
-        const areaCode = params.get('area');
-        
-        const areaMap = {
-            "230000": {name: "名古屋", lat: 35.1814, lon: 136.9064},
-            "270000": {name: "枚方", lat: 34.8153, lon: 135.6567},
-            "210000": {name: "豊橋", lat: 34.7667, lon: 137.3833}
-        };
+        const townName = params.get('mytown') || '枚方';
 
-        const loc = areaMap[areaCode] || {name: "指定地点", lat: 34.8153, lon: 135.6567};
-        document.getElementById('location-name').innerText = loc.name + "の天気予報";
-
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&forecast_days=3`)
+        // 1. まず「地名」から「緯度経度」を検索する（Geocoding APIを使用）
+        fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${townName}&count=1&language=ja`)
             .then(res => res.json())
             .then(data => {
+                if (!data.results) throw new Error("場所が見つかりません");
+                const loc = data.results[0];
+                document.getElementById('location-name').innerText = loc.name + "の天気予報";
+                return fetch(`https://api.open-meteo.com/v1/forecast?latitude=${loc.latitude}&longitude=${loc.longitude}&current=temperature_2m,weather_code&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&forecast_days=3`);
+            })
+            .then(res => res.json())
+            .then(data => {
+                // 2. あとは同じ（天気表示処理）
                 const icon = (c) => c < 2 ? "☀️" : (c < 50 ? "☁️" : "☔");
-                
-                // 現在
                 document.getElementById('current').innerHTML = `<div>現在</div><div style="font-size:150px;">${icon(data.current.weather_code)}</div><div style="font-size:100px;">${data.current.temperature_2m}℃</div>`;
                 
-                // 正確な時間インデックス取得
-                const now = new Date();
-                const nowHour = now.getHours();
-                
+                const nowHour = new Date().getHours();
                 let h = "";
                 for(let i=1; i<=6; i++) {
                     const targetHour = nowHour + (i * 3);
-                    // 時間のズレを防ぐため、常に現在から未来のデータを順に取得
                     h += `<div class="fc-card">${i*3}h後<br>${icon(data.hourly.weather_code[targetHour])}<br>${data.hourly.temperature_2m[targetHour]}℃</div>`;
                 }
                 document.getElementById('hourly-forecast').innerHTML = h;
 
-                // 明日・明後日
                 let d = "";
                 for(let i=1; i<=2; i++) {
                     d += `<div class="daily-box"><div>${i===1?"明日":"明後日"}</div><div style="font-size:80px;">${icon(data.daily.weather_code[i])}</div><div>${data.daily.temperature_2m_max[i]}℃ / ${data.daily.temperature_2m_min[i]}℃</div></div>`;
                 }
                 document.getElementById('daily-forecast').innerHTML = d;
+            })
+            .catch(err => {
+                document.getElementById('location-name').innerText = "エラー: 指定された場所が見つかりません";
             });
     </script>
 </body>
