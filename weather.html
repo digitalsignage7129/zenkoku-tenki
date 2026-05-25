@@ -2,59 +2,53 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お天気サイネージ (完全復元版)</title>
+    <title>枚方市 お天気サイネージ</title>
     <style>
-        body { margin: 0; padding: 20px; font-family: sans-serif; background: #e6f2ff; color: #333; }
-        .container { max-width: 900px; margin: auto; background: white; padding: 30px; border-radius: 20px; border: 3px solid #b3d1ff; }
-        .row { display: flex; gap: 20px; margin-bottom: 20px; }
-        .box { flex: 1; padding: 20px; background: #f9f9f9; border-radius: 15px; text-align: center; }
-        h2 { margin-top: 0; color: #003366; }
+        body { margin: 0; background: #002244; color: white; font-family: sans-serif; }
+        .main-card { width: 90%; margin: 20px auto; padding: 30px; background: #003366; border-radius: 20px; text-align: center; }
+        .forecast-container { display: flex; justify-content: space-around; padding: 20px; }
+        .fc-box { background: #004488; padding: 15px; border-radius: 15px; width: 15%; }
+        .icon { font-size: 50px; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>枚方市のお天気</h1>
-        <div class="row">
-            <div class="box" id="current">読み込み中...</div>
-        </div>
-        <h2>3時間おき予報</h2>
-        <div class="row" id="forecast">読み込み中...</div>
+    <div class="main-card">
+        <h1>現在の天気 (枚方市)</h1>
+        <div id="current-info" style="font-size: 30px;">読み込み中...</div>
     </div>
+    
+    <div class="forecast-container" id="forecast-area">
+        </div>
 
     <script>
-        const lat = 34.8153; 
-        const lon = 135.6567;
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code&timezone=Asia%2FTokyo`;
+        // 通信はこれ一つで完結させます
+        const url = "https://api.open-meteo.com/v1/forecast?latitude=34.8153&longitude=135.6567&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&forecast_days=3";
+
+        function getIcon(code) {
+            if(code < 2) return "☀️";
+            if(code < 50) return "☁️";
+            return "☔";
+        }
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                // 現在の天気
-                document.getElementById('current').innerHTML = `
-                    <h2>現在の天気</h2>
-                    <p style="font-size:24px;">気温: ${data.current.temperature_2m}℃ / 湿度: ${data.current.relative_humidity_2m}%</p>
-                `;
+                // 現在の天気を表示
+                document.getElementById('current-info').innerHTML = 
+                    `${getIcon(data.current.weather_code)} 気温: ${data.current.temperature_2m}℃ / 湿度: ${data.current.relative_humidity_2m}%`;
 
-                // 3時間おきの予報 (今の時間からスタート)
-                const now = new Date();
-                const currentHour = now.getHours();
-                let fcHtml = "";
-                
-                for(let i = 1; i <= 4; i++) {
-                    let targetIndex = currentHour + (i * 3);
-                    // 次の日のデータにならないよう補正
-                    if (targetIndex >= 24) targetIndex -= 24;
-                    
-                    fcHtml += `
-                        <div class="box">
-                            <div>${i * 3}時間後</div>
-                            <div style="font-size:20px;">${data.hourly.temperature_2m[targetIndex]}℃</div>
+                // 3時間おき予報の表示
+                let html = "";
+                for(let i=1; i<=5; i++) {
+                    let idx = i * 3;
+                    html += `
+                        <div class="fc-box">
+                            <div>${idx}時間後</div>
+                            <div class="icon">${getIcon(data.hourly.weather_code[idx])}</div>
+                            <div>${data.hourly.temperature_2m[idx]}℃</div>
                         </div>`;
                 }
-                document.getElementById('forecast').innerHTML = fcHtml;
-            })
-            .catch(err => {
-                document.getElementById('current').innerHTML = "エラー: 通信に失敗しました";
+                document.getElementById('forecast-area').innerHTML = html;
             });
     </script>
 </body>
