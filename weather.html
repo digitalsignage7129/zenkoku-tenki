@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージシステム (OWM日本語高精度版)</title>
+    <title>お天気サイネージシステム (OWMエラー完全回避版)</title>
     <style>
         html, body {
             margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important;
@@ -133,7 +133,6 @@ function resizeSignage() {
 }
 window.addEventListener('resize', resizeSignage);
 
-// OWMのアイコンコードを綺麗な絵文字に変換
 function getWeatherEmoji(iconCode, description) {
     if (iconCode.startsWith('01')) return { text: description, icon: '☀️' };
     if (iconCode.startsWith('02')) return { text: description, icon: '⛅' };
@@ -148,33 +147,32 @@ window.onload = function() {
     updateLiveClock();
     const urlParams = new URLSearchParams(window.location.search);
     
-    // 💡 改善：日本語（漢字）の地名を100%安全に読み取れるようデコード処理を厳格化
-    let rawTown = urlParams.get('mytown') || '東京都';
+    let rawTown = urlParams.get('mytown') || '東京';
     let cityName = decodeURIComponent(rawTown);
+    
+    // 💡👑【超重要：OWMエラー完全回避処理】
+    // 入力された文字の末尾に「市」「区」「町」「村」があれば、APIが壊れるのを防ぐために自動消去
+    let optimizedCity = cityName.replace(/[市区町村]$/, "");
+    
     document.getElementById('cityNameDisplay').innerText = cityName;
 
-    // パブリックAPIキー
     const API_KEY = 'b355658639ff342fa35b0df14555b7aa'; 
     
-    // 💡 改善：リクエストURLの末尾に「&lang=ja」を確実に付与し、完全な日本語データを召喚
     Promise.all([
-        fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(cityName)}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
-        fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(cityName)}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
+        fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(optimizedCity)}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
+        fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(optimizedCity)}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
     ])
     .then(([currentData, forecastData]) => {
         if (currentData.cod !== 200) throw new Error("City not found");
 
-        // 1. 現在の天気の描画（OWM純正の日本語テキストを適用）
         const currentInfo = getWeatherEmoji(currentData.weather[0].icon, currentData.weather[0].description);
         document.getElementById('heroWeatherText').innerText = currentInfo.text;
         document.getElementById('heroIcon').innerText = currentInfo.icon;
         
-        // 2. 本日の最高・最低気温と湿度の描画
         document.getElementById('maxTempVal').innerText = Math.round(currentData.main.temp_max);
         document.getElementById('minTempVal').innerText = Math.round(currentData.main.temp_min);
         document.getElementById('popVal').innerText = `${currentData.main.humidity}%`;
 
-        // 3. 3時間おきの詳細予報生成
         const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
         for (let i = 0; i < 4; i++) {
             const f = forecastData.list[i];
@@ -188,7 +186,6 @@ window.onload = function() {
                 </div>`;
         }
 
-        // 4. 明日・明後日の予報反映
         const day1 = forecastData.list[8]; 
         const day1Info = getWeatherEmoji(day1.weather[0].icon, day1.weather[0].description);
         document.getElementById('day1Text').innerText = day1Info.text;
@@ -205,7 +202,7 @@ window.onload = function() {
     })
     .catch(err => {
         console.error(err);
-        document.getElementById('cityNameDisplay').innerText = "都市名エラー（正確な市町村名を入力してください）";
+        document.getElementById('cityNameDisplay').innerText = "都市名エラー（地名のみで入力してください）";
     });
 
     resizeSignage(); setTimeout(resizeSignage, 50);
