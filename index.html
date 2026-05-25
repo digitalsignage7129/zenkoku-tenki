@@ -2,126 +2,41 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>お天気サイネージ地域選択ポータル</title>
+    <title>天気予報検索</title>
     <style>
-        body {
-            font-family: sans-serif; background-color: #e6f2ff; color: #1c2d42; margin: 0; padding: 0;
-            display: flex; justify-content: center; align-items: center; min-height: 100vh;
-        }
-        .container {
-            max-width: 800px; width: 90%; background: white; padding: 40px; border-radius: 24px;
-            box-shadow: 0 15px 35px rgba(0,51,102,0.08); border: 3px solid #b3d1ff; box-sizing: border-box;
-        }
-        h1 { text-align: center; color: #003366; font-size: 32px; margin-top: 0; margin-bottom: 10px; font-weight: 900; }
-        
-        .search-box-container {
-            background: #f4f9ff; border: 2px solid #0066cc; padding: 30px; border-radius: 16px; margin-top: 20px;
-        }
-        .search-row { display: flex; gap: 15px; }
-        .search-input {
-            flex: 1; padding: 18px; font-size: 20px; border: 2px solid #b3d1ff; border-radius: 10px; font-weight: bold; color: #1c2d42;
-        }
-        .search-input:focus { border-color: #0066cc; outline: none; }
-        .search-btn {
-            background: #0066cc; color: white; border: none; padding: 0 35px; font-size: 20px; font-weight: bold; border-radius: 10px; cursor: pointer; transition: background 0.2s;
-        }
-        .search-btn:hover { background: #004499; }
+        body { background: #0077be; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 100px; }
+        input { font-size: 30px; padding: 15px; width: 400px; }
+        button { font-size: 30px; padding: 15px 30px; cursor: pointer; }
+        .list-item { background: rgba(255,255,255,0.2); margin: 10px; padding: 20px; width: 400px; cursor: pointer; border-radius: 10px; }
+        .list-item:hover { background: rgba(255,255,255,0.4); }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <h1>遠隔現場用お天気サイネージ</h1>
-
-    <div class="search-box-container">
-        <div class="search-row">
-            <input type="text" id="keywordInput" class="search-input" placeholder="地域名を入力してください">
-            <button onclick="searchLocation()" class="search-btn">設定</button>
-        </div>
+    <h1>地域の天気を選択</h1>
+    <div>
+        <input type="text" id="query" placeholder="市町村名を入力">
+        <button onclick="searchLocation()">検索</button>
     </div>
-</div>
+    <div id="results"></div>
 
-<script>
-// 🗺️ 全国主要都市・気象庁コード完全固定マップ（コードの送信漏れを完全に防ぎます）
-const globalLocationDatabase = {
-    // 北海道・東北
-    "札幌": { code: "016000", sub: 0 },
-    "北海道": { code: "016000", sub: 0 },
-    "仙台": { code: "040000", sub: 0 },
-    "宮城": { code: "040000", sub: 0 },
-
-    // 関東
-    "東京": { code: "130000", sub: 0 },
-    "新宿": { code: "130000", sub: 0 },
-    "横浜": { code: "140000", sub: 0 },
-    "神奈川": { code: "140000", sub: 0 },
-
-    // 中部（愛知・豊橋など）
-    "名古屋": { code: "230000", sub: 0 },
-    "愛知": { code: "230000", sub: 0 },
-    "豊橋": { code: "230000", sub: 1 },
-    "岡崎": { code: "230000", sub: 1 },
-
-    // 近畿（大阪・枚方など）
-    "大阪": { code: "270000", sub: 0 },
-    "枚方": { code: "270000", sub: 1 },
-    "交野": { code: "270000", sub: 1 },
-    "寝屋川": { code: "270000", sub: 1 },
-    "守口": { code: "270000", sub: 1 },
-    "門真": { code: "270000", sub: 1 },
-    "東大阪": { code: "270000", sub: 1 },
-    "八尾": { code: "270000", sub: 1 },
-    "豊中": { code: "270000", sub: 0 },
-    "高槻": { code: "270000", sub: 0 },
-    "吹田": { code: "270000", sub: 0 },
-    "茨木": { code: "270000", sub: 0 },
-    "堺": { code: "270000", sub: 2 },
-    "岸和田": { code: "270000", sub: 2 },
-    "京都": { code: "260000", sub: 0 },
-    "神戸": { code: "280000", sub: 0 },
-    "兵庫": { code: "280000", sub: 0 },
-
-    // 四国（愛媛・西条など）
-    "西条": { code: "380000", sub: 1 },
-    "新居浜": { code: "380000", sub: 1 },
-    "今治": { code: "380000", sub: 1 },
-    "松山": { code: "380000", sub: 0 },
-    "宇和島": { code: "380000", sub: 2 },
-
-    // 九州・沖縄
-    "福岡": { code: "400000", sub: 0 },
-    "那覇": { code: "471000", sub: 0 },
-    "沖縄": { code: "471000", sub: 0 }
-};
-
-function searchLocation() {
-    let input = document.getElementById('keywordInput').value.trim();
-    if (!input) { alert('地域名を入力してください。'); return; }
-
-    // 入力文字から余計な「市・区・町・村・都・府・県」を排除して正確に突合
-    const cleanInput = input.replace(/[市区町村都道府県]/g, "");
-
-    let found = null;
-    for (let key in globalLocationDatabase) {
-        if (key.includes(cleanInput) || cleanInput.includes(key)) {
-            found = globalLocationDatabase[key];
-            break;
+    <script>
+        function searchLocation() {
+            const query = document.getElementById('query').value;
+            fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&language=ja`)
+                .then(res => res.json())
+                .then(data => {
+                    const container = document.getElementById('results');
+                    container.innerHTML = "";
+                    if (!data.results) { container.innerHTML = "見つかりませんでした"; return; }
+                    data.results.forEach(loc => {
+                        const div = document.createElement('div');
+                        div.className = 'list-item';
+                        div.innerText = `${loc.name} (${loc.admin1 || ''})`;
+                        div.onclick = () => window.location.href = `weather.html?lat=${loc.latitude}&lon=${loc.longitude}&name=${encodeURIComponent(loc.name)}`;
+                        container.appendChild(div);
+                    });
+                });
         }
-    }
-
-    if (found) {
-        // 【修正】特定地域固有の気象庁エリアコード（area）とサブインデックス（sub）を100%確実に次画面へ渡します
-        window.location.href = `weather.html?area=${found.code}&sub=${found.sub}&mytown=${encodeURIComponent(input)}`;
-    } else {
-        // リストにないマイナー地名の場合は、デフォルトとして東京(130000)のデータ枠を使用してエラーを防ぎます
-        window.location.href = `weather.html?area=130000&sub=0&mytown=${encodeURIComponent(input)}`;
-    }
-}
-
-document.getElementById('keywordInput').addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') { searchLocation(); }
-});
-</script>
+    </script>
 </body>
 </html>
