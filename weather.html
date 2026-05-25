@@ -6,10 +6,12 @@
     <style>
         body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; overflow: hidden; }
         .wrapper { width: 1920px; height: 1080px; padding: 40px; box-sizing: border-box; }
-        /* ヘッダーのレイアウトを調整 */
-        .header-container { display: flex; align-items: baseline; gap: 30px; margin-bottom: 20px; }
+        
+        /* ヘッダー：地名と時計を左右に分ける設定 */
+        .header-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .header { font-size: 80px; font-weight: bold; }
-        .clock { font-size: 50px; color: #eee; }
+        .clock { font-size: 100px; color: #fff; font-weight: bold; background: rgba(0,0,0,0.2); padding: 10px 30px; border-radius: 20px; }
+        
         .main-row { display: flex; gap: 20px; height: 400px; }
         .current { flex: 1; background: rgba(255,255,255,0.1); border-radius: 30px; display: flex; align-items: center; justify-content: center; gap: 50px; font-size: 80px; }
         .hourly-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin: 20px 0; }
@@ -31,7 +33,6 @@
     </div>
 
     <script>
-        // 時計の更新処理
         function updateClock() {
             const now = new Date();
             document.getElementById('current-time').innerText = 
@@ -43,7 +44,7 @@
         const params = new URLSearchParams(window.location.search);
         const lat = params.get('lat');
         const lon = params.get('lon');
-        const name = decodeURIComponent(params.get('name'));
+        const name = decodeURIComponent(params.get('name') || "場所指定なし");
 
         document.getElementById('location-name').innerText = name + "の天気予報";
 
