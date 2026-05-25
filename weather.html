@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージシステム (OWMエラー完全回避版)</title>
+    <title>お天気サイネージシステム (OWM高精度・完全版)</title>
     <style>
         html, body {
             margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important;
@@ -150,17 +150,17 @@ window.onload = function() {
     let rawTown = urlParams.get('mytown') || '東京';
     let cityName = decodeURIComponent(rawTown);
     
-    // 💡👑【超重要：OWMエラー完全回避処理】
-    // 入力された文字の末尾に「市」「区」「町」「村」があれば、APIが壊れるのを防ぐために自動消去
+    // 末尾の市区町村を削ってOWMの検索ヒット率を最大化する処理
     let optimizedCity = cityName.replace(/[市区町村]$/, "");
     
     document.getElementById('cityNameDisplay').innerText = cityName;
 
-    const API_KEY = 'b355658639ff342fa35b0df14555b7aa'; 
+    // 💡👑 いただいたあなたの本物のAPIキーをがっちり組み込みました！
+    const API_KEY = '6b80c00ad3da39082b7e25c449d07c51'; 
     
     Promise.all([
-        fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(optimizedCity)}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
-        fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(optimizedCity)}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
+        fetch(`https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(optimizedCity)},JP&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
+        fetch(`https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(optimizedCity)},JP&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
     ])
     .then(([currentData, forecastData]) => {
         if (currentData.cod !== 200) throw new Error("City not found");
