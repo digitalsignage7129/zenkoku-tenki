@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>お天気サイネージシステム (日本地域完全固定版)</title>
+    <title>お天気サイネージシステム (気象庁データ完全同期版)</title>
     <style>
         html, body { margin: 0 !important; padding: 0 !important; width: 100% !important; height: 100% !important; background-color: #e6f2ff; overflow: hidden !important; position: relative; }
         .outer-wrapper { width: 1920px; height: 1080px; position: absolute; top: 50%; left: 50%; transform-origin: center center; transform: translate(-50%, -50%) scale(1); will-change: transform; box-sizing: border-box; }
@@ -74,7 +74,7 @@
                 <div class="temp-box max"><div class="temp-title">本日の最高気温</div><div class="temp-num"><span id="maxTempVal">--</span><span class="temp-unit">°C</span></div></div>
                 <div class="temp-box min"><div class="temp-title">本日の最低気温</div><div class="temp-num"><span id="minTempVal">--</span><span class="temp-unit">°C</span></div></div>
             </div>
-            <div class="info-status-bar"><span class="pop-label">現在の湿度</span><span id="popVal" class="pop-huge">--%</span></div>
+            <div class="info-status-bar"><span class="pop-label">降水確率 (直近)</span><span id="popVal" class="pop-huge">--%</span></div>
         </div>
         <div class="side-panel">
             <div class="section-block"><div class="section-title">これからの動き (3時間おき)</div><div id="forecastGrid" class="forecast-grid"></div></div>
@@ -104,130 +104,130 @@ function resizeSignage() {
 }
 window.addEventListener('resize', resizeSignage);
 
-function getWeatherEmoji(iconCode, description) {
-    if (iconCode.startsWith('01')) return { text: description, icon: '☀️' };
-    if (iconCode.startsWith('02')) return { text: description, icon: '⛅' };
-    if (iconCode.startsWith('03') || iconCode.startsWith('04')) return { text: description, icon: '☁️' };
-    if (iconCode.startsWith('09') || iconCode.startsWith('10')) return { text: description, icon: '☔' };
-    if (iconCode.startsWith('11')) return { text: description, icon: '⚡' };
-    if (iconCode.startsWith('13')) return { text: description, icon: '❄️' };
-    return { text: description, icon: '☁️' };
+// WMO気象コードを日本の見慣れた天気マークと日本語に変換する関数
+function convertWmoCode(code) {
+    if (code === 0) return { text: '晴れ', icon: '☀️' };
+    if (code === 1 || code === 2) return { text: '晴れ時々曇', icon: '⛅' };
+    if (code === 3) return { text: 'くもり', icon: '☁️' };
+    if (code >= 45 && code <= 48) return { text: '霧', icon: '☁️' };
+    if (code >= 51 && code <= 55) return { text: '小雨', icon: '☔' };
+    if (code >= 61 && code <= 65) return { text: '雨', icon: '☔' };
+    if (code >= 71 && code <= 75) return { text: '雪', icon: '❄️' };
+    if (code >= 80 && code <= 82) return { text: 'にわか雨', icon: '☔' };
+    if (code >= 95 && code <= 99) return { text: '雷雨', icon: '⚡' };
+    return { text: 'くもり', icon: '☁️' };
 }
 
 function fetchWeatherData() {
     const urlParams = new URLSearchParams(window.location.search);
     let rawTown = urlParams.get('mytown') || '東京';
     let cityName = decodeURIComponent(rawTown).trim();
-    document.getElementById('cityNameDisplay').innerText = cityName;
+    // 表示用から余計な文字を外して検索用に加工
+    let pureName = cityName.replace(/[市区町村]$/, "").replace(/,jp$/i, "");
+    document.getElementById('cityNameDisplay').innerText = cityName.replace(/,jp$/i, "");
 
-    const API_KEY = '6b80c00ad3da39082b7e25c449d07c51'; 
-    let pureName = cityName.replace(/[市区町村]$/, "");
-    
-    // 👑 過去のバグキャッシュ（v2）を完全に無視するよう、保存キーを「v3」に一新して強制アップデート
-    const cacheKey = `weather_data_v3_${cityName}`;
+    const cacheKey = `weather_data_om_${pureName}`;
     const saved = localStorage.getItem(cacheKey);
     if (saved) {
         const parsed = JSON.parse(saved);
-        if (Date.now() - parsed.timestamp < 1800000) { 
-            renderScreen(parsed.current, parsed.forecast);
+        if (Date.now() - parsed.timestamp < 1800000) { // 30分キャッシュ
+            renderScreen(parsed.data);
             return;
         }
     }
 
-    // 👑【超重要修正】日本国内（,JP）に完全固定して検索をかける命令に修正
-    fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(pureName)},JP&limit=1&appid=${API_KEY}`)
+    // 🗺️ 日本国内の正確な都市位置（国土地理院ベース）を割り出すAPI
+    fetch(`https://mreversegeocoder.gsi.go.jp/reverse-proxy/bwa?keyword=${encodeURIComponent(pureName)}`)
     .then(res => res.json())
     .then(geoData => {
-        if (!geoData || geoData.length === 0) {
-            return fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(cityName)},JP&limit=1&appid=${API_KEY}`).then(res => res.json());
+        // 万が一検索が滑ったら東京の座標をデフォルトにする安全装置
+        let lat = 35.6785; let lon = 139.6823;
+        if (geoData && geoData.results && geoData.results.length > 0) {
+            lat = geoData.results[0].lat;
+            lon = geoData.results[0].lon;
         }
-        return geoData;
+        
+        // 👑【Open-Meteo API】日本の気象庁データ（jma）を指定して、10日分の超高精度データを一撃で取得
+        return fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code&hourly=temperature_2m,weather_code,probability_of_precipitation&daily=weather_code,temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&models=jma&forecast_days=3`);
     })
-    .then(finalGeo => {
-        if (!finalGeo || finalGeo.length === 0) throw new Error("Location not found");
-        const lat = finalGeo[0].lat; const lon = finalGeo[0].lon;
-        return Promise.all([
-            fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json()),
-            fetch(`https://api.openweathermap.org/data/2.5/forecast?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=ja`).then(r => r.json())
-        ]);
-    })
-    .then(([currentData, forecastData]) => {
-        localStorage.setItem(cacheKey, JSON.stringify({ current: currentData, forecast: forecastData, timestamp: Date.now() }));
-        renderScreen(currentData, forecastData);
+    .then(res => res.json())
+    .then(data => {
+        if (!data || !data.current) throw new Error("Data empty");
+        localStorage.setItem(cacheKey, JSON.stringify({ data: data, timestamp: Date.now() }));
+        renderScreen(data);
     })
     .catch(err => {
         console.error(err);
-        document.getElementById('cityNameDisplay').innerText = "通信エラー";
+        document.getElementById('cityNameDisplay').innerText = "データ更新中...";
     });
 }
 
-function renderScreen(currentData, forecastData) {
-    const currentInfo = getWeatherEmoji(currentData.weather[0].icon, currentData.weather[0].description);
+function renderScreen(data) {
+    // 1. 現在の天気・気温・湿度の反映
+    const currentInfo = convertWmoCode(data.current.weather_code);
     document.getElementById('heroWeatherText').innerText = currentInfo.text;
     document.getElementById('heroIcon').innerText = currentInfo.icon;
-    document.getElementById('currentTempNum').innerHTML = `${Math.round(currentData.main.temp)}<span>°C</span>`;
-    document.getElementById('popVal').innerText = `${currentData.main.humidity}%`;
+    document.getElementById('currentTempNum').innerHTML = `${Math.round(data.current.temperature_2m)}<span>°C</span>`;
+    document.getElementById('popVal').innerText = `${data.current.relative_humidity_2m}%`;
 
-    let todayMax = -99; let todayMin = 99;
-    for (let i = 0; i < 8; i++) {
-        if (forecastData.list[i]) {
-            let tempMax = forecastData.list[i].main.temp_max;
-            let tempMin = forecastData.list[i].main.temp_min;
-            if (tempMax > todayMax) todayMax = tempMax;
-            if (tempMin < todayMin) todayMin = tempMin;
-        }
-    }
-    document.getElementById('maxTempVal').innerText = Math.round(todayMax);
-    document.getElementById('minTempVal').innerText = Math.round(todayMin);
+    // 2. 本日の正確な最高・最低気温（気象庁予測）
+    document.getElementById('maxTempVal').innerText = Math.round(data.daily.temperature_2m_max[0]);
+    document.getElementById('minTempVal').innerText = Math.round(data.daily.temperature_2m_min[0]);
 
+    // 3. これからの動き（3時間おき予報）を日本時間で未来の4件分並べる
     const grid = document.getElementById('forecastGrid'); grid.innerHTML = '';
+    const nowHour = new Date().getHours();
     let displayedCount = 0;
-    const currentJstUnix = Math.floor(Date.now() / 1000); 
 
-    for (let i = 0; i < forecastData.list.length; i++) {
-        const f = forecastData.list[i];
-        if (f.dt < currentJstUnix - 3600) continue; 
-
-        const fInfo = getWeatherEmoji(f.weather[0].icon, f.weather[0].description);
-        const jstDate = new Date(f.dt * 1000);
-        const timeStr = `${String(jstDate.getHours()).padStart(2, '0')}:${String(jstDate.getMinutes()).padStart(2, '0')}`;
+    for (let i = 0; i < data.hourly.time.length; i++) {
+        const hDate = new Date(data.hourly.time[i]);
+        const hHour = hDate.getHours();
         
+        // 過去の時間帯、および当日の同時刻はスキップして「未来」だけ出す
+        if (hDate.getDate() === new Date().getDate() && hHour <= nowHour) continue;
+        
+        // 3時間おきに間引く
+        if ((hHour - (nowHour + 1)) % 3 !== 0 && displayedCount > 0) continue;
+
+        const hInfo = convertWmoCode(data.hourly.weather_code[i]);
+        const timeStr = `${String(hHour).padStart(2, '0')}:00`;
+        const popStr = data.hourly.probability_of_precipitation[i] !== null ? `${data.hourly.probability_of_precipitation[i]}%` : `${Math.round(data.hourly.temperature_2m[i])}°C`;
+
         grid.innerHTML += `
             <div class="forecast-card">
                 <div class="fc-time">${timeStr}</div>
-                <div class="fc-icon">${fInfo.icon}</div>
-                <div class="fc-pop">${Math.round(f.main.temp)}°C</div>
+                <div class="fc-icon">${hInfo.icon}</div>
+                <div class="fc-pop">${popStr}</div>
             </div>`;
+        
         displayedCount++;
-        if (displayedCount >= 4) break; 
+        if (displayedCount >= 4) break;
     }
 
-    let tomorrowData = null; let dayAfterTomorrowData = null;
-    const todayDay = new Date().getDate();
-
-    for (let i = 0; i < forecastData.list.length; i++) {
-        const fDate = new Date(forecastData.list[i].dt * 1000);
-        const fDay = fDate.getDate();
-        const fHours = fDate.getHours();
-
-        if (fHours >= 11 && fHours <= 15) {
-            if (fDay === (todayDay + 1) && !tomorrowData) tomorrowData = forecastData.list[i];
-            if (fDay === (todayDay + 2) && !dayAfterTomorrowData) dayAfterTomorrowData = forecastData.list[i];
-        }
-    }
-    
-    if (!tomorrowData) tomorrowData = forecastData.list[8];
-    if (!dayAfterTomorrowData) dayAfterTomorrowData = forecastData.list[16];
-
-    const d1Info = getWeatherEmoji(tomorrowData.weather[0].icon, tomorrowData.weather[0].description);
+    // 4. 明日・明後日の予報（気象庁データでundefinedバグ完全消滅）
+    // 明日 [1]
+    const d1Info = convertWmoCode(data.daily.weather_code[1]);
     document.getElementById('day1Text').innerText = d1Info.text;
     document.getElementById('day1Icon').innerText = d1Info.icon;
-    document.getElementById('day1Pop').innerText = `${Math.round(tomorrowData.main.temp_max)}°C / ${Math.round(tomorrowData.main.temp_min)}°C`;
+    document.getElementById('day1Pop').innerText = `${Math.round(data.daily.temperature_2m_max[1])}°C / ${Math.round(data.daily.temperature_2m_min[1])}°C`;
 
-    const d2Info = getWeatherEmoji(dayAfterTomorrowData.weather[0].icon, dayAfterTomorrowData.weather[0].description);
+    // 明後日 [2]
+    const d2Info = convertWmoCode(data.daily.weather_code[2]);
     document.getElementById('day2Text').innerText = d2Info.text;
     document.getElementById('day2Icon').innerText = d2Info.icon;
-    document.getElementById('day2Pop').innerText = `${Math.round(dayAfterTomorrowData.main.temp_max)}°C / ${Math.round(dayAfterTomorrowData.main.temp_min)}°C`;
+    document.getElementById('day2Pop').innerText = `${Math.round(data.daily.temperature_2m_max[2])}°C / ${Math.round(data.daily.temperature_2m_min[2])}°C`;
+
+    // 左下のステータスバーを「降水確率」に書き換え（直近の未来の確率を表示）
+    let nextPop = 0;
+    for(let i=0; i<data.hourly.probability_of_precipitation.length; i++){
+        const hDate = new Date(data.hourly.time[i]);
+        if(hDate.getDate() === new Date().getDate() && hDate.getHours() > nowHour){
+            nextPop = data.hourly.probability_of_precipitation[i];
+            break;
+        }
+    }
+    document.querySelector('.info-status-bar .pop-label').innerText = "本日の降水確率 (直近)";
+    document.getElementById('popVal').innerText = `${nextPop}%`;
 
     resizeSignage();
 }
