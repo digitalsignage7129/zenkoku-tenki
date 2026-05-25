@@ -4,38 +4,38 @@
     <meta charset="UTF-8">
     <title>お天気サイネージ</title>
     <style>
-        body { margin: 0; background: #0077be; color: #ffffff; font-family: sans-serif; }
-        .wrapper { width: 1920px; height: 1080px; padding: 50px; box-sizing: border-box; display: flex; flex-direction: column; gap: 30px; }
+        body { margin: 0; background: #0077be; color: #ffffff; font-family: sans-serif; overflow: hidden; }
+        .wrapper { width: 1920px; height: 1080px; padding: 50px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px; }
         
-        /* タイトルのスタイル強化 */
-        .header { font-size: 80px; font-weight: bold; border-bottom: 5px solid white; padding-bottom: 10px; }
+        .header { font-size: 70px; font-weight: bold; }
+        .main-row { display: flex; gap: 30px; height: 600px; }
         
-        .row { display: flex; gap: 30px; flex: 1; }
-        .box { background: rgba(255, 255, 255, 0.2); border-radius: 30px; padding: 40px; border: 4px solid #fff; }
+        /* 現在の天気（メイン）を最大化 */
+        .current { width: 45%; background: rgba(255, 255, 255, 0.2); border-radius: 40px; padding: 40px; border: 4px solid #fff; text-align: center; display: flex; flex-direction: column; justify-content: center; }
         
-        .current { width: 30%; font-size: 50px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
-        .forecast { width: 70%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
-        .fc-card { background: rgba(0,0,0,0.2); padding: 20px; border-radius: 25px; text-align: center; font-size: 30px; }
+        /* 3時間予報 */
+        .forecast { width: 55%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .fc-card { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 20px; text-align: center; font-size: 24px; }
         
-        /* 明日・明後日の文字サイズを大きく調整 */
-        .daily-box { flex: 1; text-align: center; font-size: 50px; font-weight: bold; padding: 30px; }
-        .daily-temp { font-size: 60px; }
+        /* 明日・明後日（控えめなサイズに調整） */
+        .daily-row { display: flex; gap: 20px; height: 250px; }
+        .daily-box { flex: 1; background: rgba(255, 255, 255, 0.1); border-radius: 30px; padding: 20px; display: flex; align-items: center; justify-content: space-around; font-size: 40px; }
     </style>
 </head>
 <body>
     <div class="wrapper">
-        <div class="header" id="location-name">読み込み中...</div>
-        <div class="row">
-            <div class="box current" id="current">取得中...</div>
+        <div class="header" id="location-name">地名を読み込み中...</div>
+        <div class="main-row">
+            <div class="current" id="current">読み込み中...</div>
             <div class="forecast" id="hourly-forecast"></div>
         </div>
-        <div class="row" id="daily-forecast" style="height: 250px;"></div>
+        <div class="daily-row" id="daily-forecast"></div>
     </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
-        // パラメータがない場合は地名を自動補完するように修正
-        const townName = params.get('name') || '地域';
+        // パラメータがなければ「地点」と表示
+        const townName = params.get('name') || '指定された地点';
         const lat = params.get('lat') || '34.8153';
         const lon = params.get('lon') || '135.6567';
 
@@ -46,17 +46,20 @@
             .then(data => {
                 const getIcon = (c) => c < 2 ? "☀️" : (c < 50 ? "☁️" : "☔");
                 
-                document.getElementById('current').innerHTML = `<div>現在</div><div style="font-size:120px;">${getIcon(data.current.weather_code)}</div><div>${data.current.temperature_2m}℃</div>`;
+                // 現在の天気（一番目立つサイズに）
+                document.getElementById('current').innerHTML = `<div style="font-size:50px;">現在の天気</div><div style="font-size:200px;">${getIcon(data.current.weather_code)}</div><div style="font-size:100px;">${data.current.temperature_2m}℃</div>`;
                 
+                // 3時間予報
                 let hHtml = "";
                 for(let i=0; i<8; i++) {
-                    hHtml += `<div class="fc-card">${i*3}h後<br><span style="font-size:50px;">${getIcon(data.hourly.weather_code[i*3])}</span><br>${data.hourly.temperature_2m[i*3]}℃</div>`;
+                    hHtml += `<div class="fc-card">${i*3}h後<br><span style="font-size:40px;">${getIcon(data.hourly.weather_code[i*3])}</span><br>${data.hourly.temperature_2m[i*3]}℃</div>`;
                 }
                 document.getElementById('hourly-forecast').innerHTML = hHtml;
 
+                // 明日・明後日（枠をスッキリさせてサイズを調整）
                 let dHtml = "";
                 for(let i=1; i<=2; i++) {
-                    dHtml += `<div class="box daily-box">${i===1?"明日":"明後日"}<br><span style="font-size:80px;">${getIcon(data.daily.weather_code[i])}</span><br><span class="daily-temp">${data.daily.temperature_2m_max[i]}℃ / ${data.daily.temperature_2m_min[i]}℃</span></div>`;
+                    dHtml += `<div class="daily-box"><div>${i===1?"明日":"明後日"}</div><div style="font-size:80px;">${getIcon(data.daily.weather_code[i])}</div><div>${data.daily.temperature_2m_max[i]}℃ / ${data.daily.temperature_2m_min[i]}℃</div></div>`;
                 }
                 document.getElementById('daily-forecast').innerHTML = dHtml;
             });
