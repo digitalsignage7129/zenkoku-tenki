@@ -2,25 +2,23 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>お天気サイネージ (フルデザイン復元版)</title>
+    <title>お天気サイネージ (最終安定版)</title>
     <style>
-        /* ここに以前の全てのCSSが入っています */
-        html, body { margin: 0; padding: 0; width: 100%; height: 100%; background-color: #e6f2ff; overflow: hidden; }
-        .signage-container { display: flex; width: 1920px; height: 1080px; padding: 50px; gap: 50px; font-family: sans-serif; }
-        .main-panel { width: 850px; background: white; padding: 40px; border-radius: 24px; border: 3px solid #b3d1ff; }
-        .side-panel { flex: 1; background: white; padding: 40px; border-radius: 24px; border: 3px solid #b3d1ff; }
+        /* デザイン部分 */
+        body { margin: 0; padding: 50px; font-family: sans-serif; background: #e6f2ff; color: #1c2d42; }
+        .signage-container { display: flex; width: 100%; height: 900px; gap: 30px; }
+        .main-panel { width: 50%; background: white; padding: 40px; border-radius: 24px; border: 3px solid #b3d1ff; }
+        .side-panel { width: 50%; background: white; padding: 40px; border-radius: 24px; border: 3px solid #b3d1ff; }
         .temp-row { font-size: 40px; margin: 20px 0; color: #003366; }
-        .forecast-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 20px; }
-        .fc-card { background: #f4f9ff; padding: 20px; border-radius: 20px; text-align: center; }
+        .forecast-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; }
+        .fc-card { background: #f4f9ff; padding: 15px; border-radius: 20px; text-align: center; }
     </style>
 </head>
 <body>
     <div class="signage-container">
         <div class="main-panel">
             <h1>現在の天気</h1>
-            <div id="current-weather">読み込み中...</div>
-            <div id="temp-details"></div>
+            <div id="current-weather">データ取得中...</div>
         </div>
         <div class="side-panel">
             <h1>3時間おき予報</h1>
@@ -29,11 +27,14 @@
     </div>
 
     <script>
-        // 安定した通信エンジン
-        const url = "https://api.open-meteo.com/v1/forecast?latitude=34.7667&longitude=137.3833&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code,probability_of_precipitation&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&forecast_days=3";
+        // 豊橋市の座標
+        const lat = 34.7667; 
+        const lon = 137.3833;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code,relative_humidity_2m&hourly=temperature_2m,weather_code,probability_of_precipitation&daily=temperature_2m_max,temperature_2m_min&timezone=Asia%2FTokyo&forecast_days=3`;
 
         function getIcon(code) {
-            if(code < 2) return "☀️";
+            if(code == 0) return "☀️";
+            if(code < 3) return "⛅";
             if(code < 50) return "☁️";
             return "☔";
         }
@@ -41,24 +42,27 @@
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                // 現在の表示
+                // 現在の天気表示
                 document.getElementById('current-weather').innerHTML = `
                     <div style="font-size:100px;">${getIcon(data.current.weather_code)}</div>
                     <div class="temp-row">気温: ${data.current.temperature_2m}℃</div>
                     <div class="temp-row">湿度: ${data.current.relative_humidity_2m}%</div>
                 `;
                 
-                // 3時間おき予報
+                // 3時間おき予報の表示
                 let grid = document.getElementById('forecast-grid');
                 grid.innerHTML = "";
-                for(let i=0; i<4; i++) {
+                for(let i=0; i<8; i++) {
                     grid.innerHTML += `
                         <div class="fc-card">
-                            <div>${i*3}時間後</div>
-                            <div style="font-size:50px;">${getIcon(data.hourly.weather_code[i*3])}</div>
+                            <div>${i*3}h後</div>
+                            <div style="font-size:40px;">${getIcon(data.hourly.weather_code[i*3])}</div>
                             <div>${data.hourly.temperature_2m[i*3]}℃</div>
                         </div>`;
                 }
+            })
+            .catch(err => {
+                document.getElementById('current-weather').innerText = "通信エラー発生。ネットワークを確認してください。";
             });
     </script>
 </body>
