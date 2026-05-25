@@ -2,44 +2,35 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>お天気サイネージシステム (完全修正版)</title>
+    <title>お天気サイネージ (最新安定版)</title>
     <style>
-        body { margin: 0; font-family: sans-serif; background: #e6f2ff; text-align: center; }
-        #status { font-size: 32px; padding: 50px; }
+        /* ※以前のCSS設定をそのままここへコピーして使ってください */
+        body { font-family: sans-serif; background: #e6f2ff; }
     </style>
 </head>
 <body>
-    <div id="status">データを取得中...</div>
+    <div id="content">データを読み込んでいます...</div>
+
     <script>
-        // 修正ポイント：国土地理院APIを使わず、地名から座標を特定する簡易マッピング
-        const locations = {
-            "豊橋市": {lat: 34.7667, lon: 137.3833},
-            "名古屋市": {lat: 35.1814, lon: 136.9064},
-            "大阪市": {lat: 34.6937, lon: 135.5023},
-            "東京": {lat: 35.6895, lon: 139.6917}
-        };
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const myTown = urlParams.get('mytown') || '豊橋市';
-        document.getElementById('status').innerText = myTown + "の天気を取得中...";
-
-        // 検索APIを使わず、Open-Meteoに直接投げる（これなら404エラーが出ない）
-        const loc = locations[myTown] || {lat: 35.6785, lon: 139.6823};
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&models=jma&forecast_days=3`;
+        // 緯度経度は「豊橋」に固定しています。必要に応じて書き換えてください。
+        const lat = 34.7667; 
+        const lon = 137.3833;
+        
+        // 【重要】エラーの原因だった models=jma を削除しました
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,weather_code&daily=temperature_2m_max,temperature_2m_min,weather_code&timezone=Asia%2FTokyo&forecast_days=3`;
 
         fetch(url)
             .then(res => res.json())
             .then(data => {
-                document.getElementById('status').innerHTML = `
-                    <h1>${myTown}の天気</h1>
-                    <p>現在の気温: ${data.current.temperature_2m}℃</p>
+                // ここで以前のデザインパーツにデータを流し込みます
+                document.getElementById('content').innerHTML = `
+                    <h1>現在の気温: ${data.current.temperature_2m}℃</h1>
                     <p>明日の最高気温: ${data.daily.temperature_2m_max[1]}℃</p>
                     <p>明後日の最高気温: ${data.daily.temperature_2m_max[2]}℃</p>
                 `;
             })
             .catch(err => {
-                document.getElementById('status').innerText = "エラー: データの取得に失敗しました。";
-                console.error(err);
+                document.getElementById('content').innerText = "通信エラーが発生しました";
             });
     </script>
 </body>
