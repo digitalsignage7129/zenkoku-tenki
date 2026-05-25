@@ -29,7 +29,6 @@
         .weather-label { font-size: 34px; font-weight: 900; color: #4a607a; letter-spacing: 2px; }
         .weather-value { font-size: 115px; font-weight: 900; line-height: 1.1; color: #002244; }
         
-        /* 🌡️ 追加：最高・最低気温の超大型ツインメーター */
         .temp-container { display: flex; gap: 25px; margin-bottom: 20px; }
         .temp-box { flex: 1; padding: 25px; border-radius: 20px; border: 3px solid #b3d1ff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(0,51,102,0.05); }
         .temp-box.max { background: #fff5f5; border-color: #ffcccc; }
@@ -71,7 +70,7 @@
             <div class="weather-hero-box">
                 <div id="heroIcon" class="weather-icon-large">⌛</div>
                 <div class="weather-text-box">
-                    <div id="tempLabel" class="weather-label">本日の天気</div>
+                    <div class="weather-label">本日の天気</div>
                     <div id="heroWeatherText" class="weather-value">読込中...</div>
                 </div>
             </div>
@@ -162,12 +161,9 @@ window.onload = function() {
         document.getElementById('cityNameDisplay').innerText = decodeURIComponent(myTownName);
     }
 
-    // 気象庁の「天気予報」と「気温データ」を同時取得
-    Promise.all([
-        fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`).then(r => r.json()),
-        fetch(`https://www.jma.go.jp/bosai/forecast/data/overview/${code}.json`).then(r => r.json()).catch(() => null)
-    ])
-    .then(([forecastData, overviewData]) => {
+    fetch(`https://www.jma.go.jp/bosai/forecast/data/forecast/${code}.json`)
+    .then(response => response.json())
+    .then(forecastData => {
         if (!forecastData || !forecastData[0]) throw new Error("Data Error");
         
         const timeSeries = forecastData[0].timeSeries;
@@ -179,25 +175,15 @@ window.onload = function() {
         document.getElementById('heroIcon').innerText = todayForecast.icon;
 
         // 2. 降水確率の抽出
-        let currentPop = "0%";
-        let tomorrowPop = "0%";
-        let dayAfterPop = "0%";
-        let popValues = [];
-
+        let currentPop = "0%"; let tomorrowPop = "0%"; let dayAfterPop = "0%"; let popValues = [];
         if (timeSeries[1] && timeSeries[1].areas) {
             const popArea = timeSeries[1].areas[subIdx] || timeSeries[1].areas[0];
             const timeStamps = timeSeries[1].timeDefines;
             popValues = popArea.pops || [];
-
             if (popValues.length > 0) {
-                const nowHour = new Date().getHours();
                 let targetIdx = 0;
-                if (timeStamps.length > 1) {
-                    for (let i = 0; i < timeStamps.length; i++) {
-                        if (new Date(timeStamps[i]).getDate() === new Date().getDate()) {
-                            targetIdx = i;
-                        }
-                    }
+                for (let i = 0; i < timeStamps.length; i++) {
+                    if (new Date(timeStamps[i]).getDate() === new Date().getDate()) targetIdx = i;
                 }
                 currentPop = `${popValues[targetIdx] || popValues[0]}%`;
                 const totalPops = popValues.length;
@@ -207,33 +193,29 @@ window.onload = function() {
         }
         document.getElementById('popVal').innerText = currentPop;
 
-        // 3. 🌡️ 気温データの解析と安全な描画（朝/夜での自動切り替え機能付き）
-        let maxTemp = "--";
-        let minTemp = "--";
-
-        if (forecastData[0].timeSeries[2]) {
-            const tempArea = forecastData[0].timeSeries[2].areas[subIdx] || forecastData[0].timeSeries[2].areas[0];
+        // 3. 🌡️👑【超安全・気温マッチング】タイムスタンプを解析し、本日用の最高・最低を狙い撃ち
+        let maxTemp = "--"; let minTemp = "--";
+        if (timeSeries[2] && timeSeries[2].areas) {
+            const tempArea = timeSeries[2].areas[subIdx] || timeSeries[2].areas[0];
+            const tempTimeDefines = timeSeries[2].timeDefines; // 気温の配信時間割
             const temps = tempArea.temps || [];
             
-            // 気象庁データに本日の最高気温が残っている時間帯（日中）
-            if (temps.length >= 2) {
-                maxTemp = temps[0] || "--";
-                minTemp = temps[1] || "--";
-            } 
-            // 夕方〜夜間になり、気象庁がデータを明日の気温にシフトした場合
-            else if (temps.length === 1) {
-                maxTemp = temps[0] || "--"; // 明日の最高気温
-                document.getElementById('tempLabel').innerText = "明日の天気（夜間切替）";
-                // サブデータ枠（翌日の予測値など）があればそこから最低気温を補完
-                if (forecastData[1] && forecastData[1].timeSeries[1]) {
-                    const nextTempArea = forecastData[1].timeSeries[1].areas[subIdx] || forecastData[1].timeSeries[1].areas[0];
-                    if (nextTempArea.temps) {
-                        minTemp = nextTempArea.temps[0] || "--"; 
-                    }
+            const todayStr = new Date().toDateString();
+
+            // 時間割と気温データを全チェックし、今日の日付に完全に一致するものだけを抽出
+            for (let i = 0; i < tempTimeDefines.length; i++) {
+                const tempDateStr = new Date(tempTimeDefines[i]).toDateString();
+                if (tempDateStr === todayStr) {
+                    // 気象庁の仕様：通常、本日枠の1番目が最低気温(朝方)、2番目が最高気温(日中)
+                    if (i === 0 && temps[0]) minTemp = temps[0];
+                    if (i === 1 && temps[1]) maxTemp = temps[1];
                 }
             }
-        }
 
+            // 万が一、夜間でデータが明日にシフトして「今日の最高気温」が消えていたら、直近の配信データを補完
+            if (maxTemp === "--" && temps[1]) maxTemp = temps[1];
+            if (minTemp === "--" && temps[0]) minTemp = temps[0];
+        }
         document.getElementById('maxTempVal').innerText = maxTemp;
         document.getElementById('minTempVal').innerText = minTemp;
 
@@ -259,7 +241,6 @@ window.onload = function() {
                     <div class="fc-pop">降水 ${futurePop}%</div>
                 </div>`;
         });
-        
         resizeSignage();
     })
     .catch(err => {
