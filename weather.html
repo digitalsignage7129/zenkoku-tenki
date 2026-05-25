@@ -6,7 +6,10 @@
     <style>
         body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; overflow: hidden; }
         .wrapper { width: 1920px; height: 1080px; padding: 40px; box-sizing: border-box; }
-        .header { font-size: 80px; font-weight: bold; margin-bottom: 20px; }
+        /* ヘッダーのレイアウトを調整 */
+        .header-container { display: flex; align-items: baseline; gap: 30px; margin-bottom: 20px; }
+        .header { font-size: 80px; font-weight: bold; }
+        .clock { font-size: 50px; color: #eee; }
         .main-row { display: flex; gap: 20px; height: 400px; }
         .current { flex: 1; background: rgba(255,255,255,0.1); border-radius: 30px; display: flex; align-items: center; justify-content: center; gap: 50px; font-size: 80px; }
         .hourly-row { display: grid; grid-template-columns: repeat(6, 1fr); gap: 15px; margin: 20px 0; }
@@ -17,13 +20,26 @@
 </head>
 <body>
     <div class="wrapper">
-        <div class="header" id="location-name">読み込み中...</div>
+        <div class="header-container">
+            <div class="header" id="location-name">読み込み中...</div>
+            <div class="clock" id="current-time">--:--</div>
+        </div>
+        
         <div class="main-row"><div class="current" id="current">データ取得中...</div></div>
         <div class="hourly-row" id="hourly-forecast"></div>
         <div class="daily-row" id="daily-forecast"></div>
     </div>
 
     <script>
+        // 時計の更新処理
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('current-time').innerText = 
+                now.getHours() + ":" + now.getMinutes().toString().padStart(2, '0');
+        }
+        updateClock();
+        setInterval(updateClock, 60000);
+
         const params = new URLSearchParams(window.location.search);
         const lat = params.get('lat');
         const lon = params.get('lon');
