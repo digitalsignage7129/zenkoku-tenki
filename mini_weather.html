@@ -3,54 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; width: 525px; height: 610px; overflow: hidden; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
+        body { 
+            margin: 0; 
+            background: #0077be; 
+            color: #fff; 
+            font-family: "Arial Black", "Helvetica Neue", "Noto Sans JP", sans-serif; 
+            font-weight: 900; /* 極太 */
+            width: 525px; 
+            height: 610px; 
+            overflow: hidden; 
+            padding: 5px; 
+            box-sizing: border-box; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+        }
         
-        /* 最上部：日付・地名バー */
-        .date-bar { height: 45px; background: rgba(0,0,0,0.3); border-radius: 10px; display: flex; justify-content: space-between; align-items: center; padding: 0 15px; font-size: 18px; font-weight: bold; }
+        /* 最上部：日付・地名（文字サイズを拡大、隙間を詰める） */
+        .date-bar { 
+            height: 50px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 0 10px; 
+            font-size: 28px; /* 拡大 */
+            border-bottom: 4px solid #fff; /* 境界線を太く */
+        }
         
         /* 今日（午前・午後・夜） */
-        .today-zone { flex: 7; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
-        .time-box { background: rgba(0,0,0,0.2); border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .label { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
-        .sub-label { font-size: 14px; color: #ccc; margin-bottom: 5px; }
-        .icon { font-size: 60px; }
-        .rain { font-size: 20px; font-weight: bold; color: #ffeb3b; }
+        .today-zone { 
+            height: 380px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1fr; 
+            gap: 5px; 
+        }
+        .time-box { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center; 
+        }
+        .label { font-size: 36px; margin-bottom: 5px; } /* 拡大 */
+        .icon-large { font-size: 90px; line-height: 1; margin: 10px 0; } /* 巨大化 */
+        .rain { font-size: 42px; color: #ffeb3b; } /* 拡大（％は潰れるので数字のみに） */
 
         /* 明日・明後日 */
-        .future-zone { flex: 3; display: flex; gap: 10px; }
-        .future-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 15px; display: flex; align-items: center; justify-content: space-around; padding: 0 15px; }
-        .future-label { font-size: 20px; font-weight: bold; }
-        .future-info { display: flex; flex-direction: column; align-items: center; }
-        .future-icon { font-size: 40px; }
-        .future-rain { font-size: 16px; font-weight: bold; color: #ffeb3b; margin-top: 2px; }
+        .future-zone { 
+            height: 140px; 
+            display: flex; 
+            gap: 5px; 
+            border-top: 4px solid #fff; /* 境界線を太く */
+        }
+        .future-box { 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            gap: 20px;
+        }
+        .future-label { font-size: 36px; } /* 拡大 */
+        .icon-small { font-size: 65px; } /* 拡大 */
+        .future-rain { font-size: 36px; color: #ffeb3b; } /* 拡大 */
     </style>
 </head>
 <body>
     <div class="date-bar">
-        <div id="current-date">0000年00月00日(月)</div>
+        <div id="current-date">00/00</div>
         <div id="location-name">--</div>
     </div>
 
     <div class="today-zone">
-        <div class="time-box"><div class="label">午前</div><div class="sub-label">(9時)</div><div class="icon" id="icon-am">--</div><div class="rain" id="rain-am">--%</div></div>
-        <div class="time-box"><div class="label">午後</div><div class="sub-label">(15時)</div><div class="icon" id="icon-pm">--</div><div class="rain" id="rain-pm">--%</div></div>
-        <div class="time-box"><div class="label">夜</div><div class="sub-label">(21時)</div><div class="icon" id="icon-night">--</div><div class="rain" id="rain-night">--%</div></div>
+        <div class="time-box"><div class="label">午前</div><div class="icon-large" id="icon-am">--</div><div class="rain" id="rain-am">--</div></div>
+        <div class="time-box"><div class="label">午後</div><div class="icon-large" id="icon-pm">--</div><div class="rain" id="rain-pm">--</div></div>
+        <div class="time-box"><div class="label">夜間</div><div class="icon-large" id="icon-night">--</div><div class="rain" id="rain-night">--</div></div>
     </div>
     
     <div class="future-zone">
         <div class="future-box">
             <div class="future-label">明日</div>
-            <div class="future-info">
-                <div class="future-icon" id="icon-1">--</div>
-                <div class="future-rain" id="rain-1">--%</div>
-            </div>
+            <div class="icon-small" id="icon-1">--</div>
+            <div class="future-rain" id="rain-1">--</div>
         </div>
         <div class="future-box">
             <div class="future-label">明後日</div>
-            <div class="future-info">
-                <div class="future-icon" id="icon-2">--</div>
-                <div class="future-rain" id="rain-2">--%</div>
-            </div>
+            <div class="icon-small" id="icon-2">--</div>
+            <div class="future-rain" id="rain-2">--</div>
         </div>
     </div>
 
@@ -61,30 +98,25 @@
         document.getElementById('location-name').innerText = decodeURIComponent(params.get('name') || "場所");
 
         const now = new Date();
-        const year = now.getFullYear();
         const month = now.getMonth() + 1;
         const date = now.getDate();
-        const dayList = ["日", "月", "火", "水", "木", "金", "土"];
-        document.getElementById('current-date').innerText = `${year}年${month}月${date}日(${dayList[now.getDay()]})`;
+        document.getElementById('current-date').innerText = `${month}/${date}`;
 
-        // dailyにprecipitation_probability_maxを追加
         fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code,precipitation_probability&daily=weather_code,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=3`)
             .then(res => res.json())
             .then(data => {
                 const icon = (c) => c < 2 ? "☀️" : (c < 50 ? "☁️" : "☔");
                 
-                // 上部：9時, 15時, 21時
                 const times = [9, 15, 21];
                 const ids = ['am', 'pm', 'night'];
                 times.forEach((t, i) => {
                     document.getElementById(`icon-${ids[i]}`).innerText = icon(data.hourly.weather_code[t]);
-                    document.getElementById(`rain-${ids[i]}`).innerText = data.hourly.precipitation_probability[t] + "%";
+                    document.getElementById(`rain-${ids[i]}`).innerText = data.hourly.precipitation_probability[t];
                 });
 
-                // 下部：明日・明後日（その日の最大降水確率を表示）
                 for(let i=1; i<=2; i++) {
                     document.getElementById(`icon-${i}`).innerText = icon(data.daily.weather_code[i]);
-                    document.getElementById(`rain-${i}`).innerText = data.daily.precipitation_probability_max[i] + "%";
+                    document.getElementById(`rain-${i}`).innerText = data.daily.precipitation_probability_max[i];
                 }
             });
     </script>
