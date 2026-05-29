@@ -20,7 +20,9 @@
         .future-zone { flex: 3; display: flex; gap: 10px; }
         .future-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 15px; display: flex; align-items: center; justify-content: space-around; padding: 0 15px; }
         .future-label { font-size: 20px; font-weight: bold; }
+        .future-info { display: flex; flex-direction: column; align-items: center; }
         .future-icon { font-size: 40px; }
+        .future-rain { font-size: 16px; font-weight: bold; color: #ffeb3b; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -34,9 +36,22 @@
         <div class="time-box"><div class="label">午後</div><div class="sub-label">(15時)</div><div class="icon" id="icon-pm">--</div><div class="rain" id="rain-pm">--%</div></div>
         <div class="time-box"><div class="label">夜</div><div class="sub-label">(21時)</div><div class="icon" id="icon-night">--</div><div class="rain" id="rain-night">--%</div></div>
     </div>
+    
     <div class="future-zone">
-        <div class="future-box"><div class="future-label">明日</div><div class="future-icon" id="icon-1">--</div></div>
-        <div class="future-box"><div class="future-label">明後日</div><div class="future-icon" id="icon-2">--</div></div>
+        <div class="future-box">
+            <div class="future-label">明日</div>
+            <div class="future-info">
+                <div class="future-icon" id="icon-1">--</div>
+                <div class="future-rain" id="rain-1">--%</div>
+            </div>
+        </div>
+        <div class="future-box">
+            <div class="future-label">明後日</div>
+            <div class="future-info">
+                <div class="future-icon" id="icon-2">--</div>
+                <div class="future-rain" id="rain-2">--%</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -45,16 +60,15 @@
         const lon = params.get('lon') || 135.6567;
         document.getElementById('location-name').innerText = decodeURIComponent(params.get('name') || "場所");
 
-        // 今日の日付と曜日を取得して表示
         const now = new Date();
         const year = now.getFullYear();
         const month = now.getMonth() + 1;
         const date = now.getDate();
         const dayList = ["日", "月", "火", "水", "木", "金", "土"];
-        const day = dayList[now.getDay()];
-        document.getElementById('current-date').innerText = `${year}年${month}月${date}日(${day})`;
+        document.getElementById('current-date').innerText = `${year}年${month}月${date}日(${dayList[now.getDay()]})`;
 
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code,precipitation_probability&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=3`)
+        // dailyにprecipitation_probability_maxを追加
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code,precipitation_probability&daily=weather_code,precipitation_probability_max&timezone=Asia%2FTokyo&forecast_days=3`)
             .then(res => res.json())
             .then(data => {
                 const icon = (c) => c < 2 ? "☀️" : (c < 50 ? "☁️" : "☔");
@@ -67,9 +81,11 @@
                     document.getElementById(`rain-${ids[i]}`).innerText = data.hourly.precipitation_probability[t] + "%";
                 });
 
-                // 下部：明日・明後日
-                document.getElementById('icon-1').innerText = icon(data.daily.weather_code[1]);
-                document.getElementById('icon-2').innerText = icon(data.daily.weather_code[2]);
+                // 下部：明日・明後日（その日の最大降水確率を表示）
+                for(let i=1; i<=2; i++) {
+                    document.getElementById(`icon-${i}`).innerText = icon(data.daily.weather_code[i]);
+                    document.getElementById(`rain-${i}`).innerText = data.daily.precipitation_probability_max[i] + "%";
+                }
             });
     </script>
 </body>
