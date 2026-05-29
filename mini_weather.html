@@ -3,63 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; width: 525px; height: 610px; overflow: hidden; padding: 15px; box-sizing: border-box; }
-        .header { font-size: 24px; font-weight: bold; margin-bottom: 10px; text-align: center; }
-        .forecast-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; height: 500px; }
-        .day-column { background: rgba(0,0,0,0.2); padding: 10px; border-radius: 15px; text-align: center; }
-        .time-label { font-size: 16px; margin-bottom: 5px; font-weight: bold; }
-        .icon { font-size: 50px; margin: 10px 0; }
-        .temp-text { font-size: 18px; }
+        body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; width: 525px; height: 610px; overflow: hidden; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 15px; }
+        
+        /* 上7割：今日（午前・午後・夜） */
+        .today-zone { height: 70%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .time-box { background: rgba(0,0,0,0.2); border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .label { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
+        .icon { font-size: 70px; }
+
+        /* 下3割：明日・明後日 */
+        .future-zone { height: 30%; display: flex; gap: 10px; }
+        .future-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 15px; display: flex; align-items: center; justify-content: space-around; padding: 0 20px; }
+        .future-label { font-size: 22px; font-weight: bold; }
+        .future-icon { font-size: 50px; }
     </style>
 </head>
 <body>
-    <div class="header" id="location-name">読み込み中...</div>
-    
-    <div class="forecast-grid">
-        <div class="day-column">
-            <div class="time-label" id="label-1">--</div>
-            <div class="icon" id="icon-today-am">--</div>
-            <div class="time-label" id="label-2">--</div>
-            <div class="icon" id="icon-today-pm">--</div>
-        </div>
-        <div class="day-column">
-            <div class="time-label">明日</div>
-            <div class="icon" id="icon-1">--</div>
-            <div class="temp-text" id="temp-1">--</div>
-        </div>
-        <div class="day-column">
-            <div class="time-label">明後日</div>
-            <div class="icon" id="icon-2">--</div>
-            <div class="temp-text" id="temp-2">--</div>
-        </div>
+    <div class="today-zone">
+        <div class="time-box"><div class="label">午前</div><div class="icon" id="am">--</div></div>
+        <div class="time-box"><div class="label">午後</div><div class="icon" id="pm">--</div></div>
+        <div class="time-box"><div class="label">夜</div><div class="icon" id="night">--</div></div>
+    </div>
+    <div class="future-zone">
+        <div class="future-box"><div class="future-label">明日</div><div class="future-icon" id="icon-1">--</div></div>
+        <div class="future-box"><div class="future-label">明後日</div><div class="future-icon" id="icon-2">--</div></div>
     </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const lat = params.get('lat') || 34.8153;
         const lon = params.get('lon') || 135.6567;
-        document.getElementById('location-name').innerText = decodeURIComponent(params.get('name') || "場所");
 
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&daily=weather_code,temperature_2m_max&timezone=Asia%2FTokyo&forecast_days=3`)
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=3`)
             .then(res => res.json())
             .then(data => {
                 const icon = (c) => c < 2 ? "☀️" : (c < 50 ? "☁️" : "☔");
-                const now = new Date();
-                const currentHour = now.getHours();
-
-                // ラベルの動的設定
-                document.getElementById('label-1').innerText = currentHour < 12 ? "今日 午前" : "今日 午後";
-                document.getElementById('label-2').innerText = currentHour < 12 ? "今日 午後" : "今夜";
-
-                // データの動的選択
-                document.getElementById('icon-today-am').innerText = icon(data.hourly.weather_code[currentHour < 12 ? 9 : 15]);
-                document.getElementById('icon-today-pm').innerText = icon(data.hourly.weather_code[currentHour < 18 ? 18 : 21]);
                 
-                // 明日・明後日
-                for(let i=1; i<=2; i++) {
-                    document.getElementById(`icon-${i}`).innerText = icon(data.daily.weather_code[i]);
-                    document.getElementById(`temp-${i}`).innerText = data.daily.temperature_2m_max[i] + "℃";
-                }
+                // 上部：今日（9時/15時/21時を固定配置）
+                document.getElementById('am').innerText = icon(data.hourly.weather_code[9]);
+                document.getElementById('pm').innerText = icon(data.hourly.weather_code[15]);
+                document.getElementById('night').innerText = icon(data.hourly.weather_code[21]);
+
+                // 下部：明日・明後日
+                document.getElementById('icon-1').innerText = icon(data.daily.weather_code[1]);
+                document.getElementById('icon-2').innerText = icon(data.daily.weather_code[2]);
             });
     </script>
 </body>
