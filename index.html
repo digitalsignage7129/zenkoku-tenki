@@ -2,17 +2,18 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>天気予報検索</title>
+    <title>天気予報 検索センター</title>
     <style>
-        body { background: #0077be; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 100px; }
-        input { font-size: 30px; padding: 15px; width: 400px; }
-        button { font-size: 30px; padding: 15px 30px; cursor: pointer; }
-        .list-item { background: rgba(255,255,255,0.2); margin: 10px; padding: 20px; width: 400px; cursor: pointer; border-radius: 10px; }
-        .list-item:hover { background: rgba(255,255,255,0.4); }
+        body { background: #0077be; color: #fff; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding-top: 50px; }
+        input { font-size: 20px; padding: 10px; width: 300px; }
+        button { font-size: 20px; padding: 10px 20px; cursor: pointer; }
+        .list-item { background: rgba(255,255,255,0.2); margin: 10px; padding: 15px; width: 450px; border-radius: 10px; display: flex; justify-content: space-between; align-items: center; }
+        .btn-group { display: flex; gap: 5px; }
+        .btn-link { padding: 5px 10px; cursor: pointer; font-size: 14px; }
     </style>
 </head>
 <body>
-    <h1>地域の天気を選択</h1>
+    <h1>表示する地域を選択</h1>
     <div>
         <input type="text" id="query" placeholder="市町村名を入力">
         <button onclick="searchLocation()">検索</button>
@@ -31,8 +32,13 @@
                     data.results.forEach(loc => {
                         const div = document.createElement('div');
                         div.className = 'list-item';
-                        div.innerText = `${loc.name} (${loc.admin1 || ''})`;
-                        div.onclick = () => window.location.href = `weather.html?lat=${loc.latitude}&lon=${loc.longitude}&name=${encodeURIComponent(loc.name)}`;
+                        div.innerHTML = `
+                            <span>${loc.name} (${loc.admin1 || ''})</span>
+                            <div class="btn-group">
+                                <button class="btn-link" onclick="window.open('weather.html?lat=${loc.latitude}&lon=${loc.longitude}&name=${encodeURIComponent(loc.name)}')">通常版</button>
+                                <button class="btn-link" onclick="window.open('mini_weather.html?lat=${loc.latitude}&lon=${loc.longitude}&name=${encodeURIComponent(loc.name)}')">ミニ版</button>
+                            </div>
+                        `;
                         container.appendChild(div);
                     });
                 });
