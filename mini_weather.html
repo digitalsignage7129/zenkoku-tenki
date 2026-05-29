@@ -3,26 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; width: 525px; height: 610px; overflow: hidden; padding: 15px; box-sizing: border-box; display: flex; flex-direction: column; gap: 15px; }
+        body { margin: 0; background: #0077be; color: #fff; font-family: sans-serif; width: 525px; height: 610px; overflow: hidden; padding: 10px; box-sizing: border-box; display: flex; flex-direction: column; gap: 10px; }
         
         /* 上7割：今日（午前・午後・夜） */
-        .today-zone { height: 70%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+        .today-zone { height: 70%; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .time-box { background: rgba(0,0,0,0.2); border-radius: 15px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .label { font-size: 20px; font-weight: bold; margin-bottom: 10px; }
-        .icon { font-size: 70px; }
+        .label { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+        .sub-label { font-size: 14px; color: #ccc; margin-bottom: 5px; }
+        .icon { font-size: 60px; }
+        .rain { font-size: 20px; font-weight: bold; color: #ffeb3b; }
 
         /* 下3割：明日・明後日 */
         .future-zone { height: 30%; display: flex; gap: 10px; }
-        .future-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 15px; display: flex; align-items: center; justify-content: space-around; padding: 0 20px; }
-        .future-label { font-size: 22px; font-weight: bold; }
-        .future-icon { font-size: 50px; }
+        .future-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 15px; display: flex; align-items: center; justify-content: space-around; padding: 0 15px; }
+        .future-label { font-size: 20px; font-weight: bold; }
+        .future-icon { font-size: 40px; }
     </style>
 </head>
 <body>
     <div class="today-zone">
-        <div class="time-box"><div class="label">午前</div><div class="icon" id="am">--</div></div>
-        <div class="time-box"><div class="label">午後</div><div class="icon" id="pm">--</div></div>
-        <div class="time-box"><div class="label">夜</div><div class="icon" id="night">--</div></div>
+        <div class="time-box"><div class="label">午前</div><div class="sub-label">(9時)</div><div class="icon" id="icon-am">--</div><div class="rain" id="rain-am">--%</div></div>
+        <div class="time-box"><div class="label">午後</div><div class="sub-label">(15時)</div><div class="icon" id="icon-pm">--</div><div class="rain" id="rain-pm">--%</div></div>
+        <div class="time-box"><div class="label">夜</div><div class="sub-label">(21時)</div><div class="icon" id="icon-night">--</div><div class="rain" id="rain-night">--%</div></div>
     </div>
     <div class="future-zone">
         <div class="future-box"><div class="future-label">明日</div><div class="future-icon" id="icon-1">--</div></div>
@@ -34,15 +36,19 @@
         const lat = params.get('lat') || 34.8153;
         const lon = params.get('lon') || 135.6567;
 
-        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=3`)
+        // hourlyにprecipitation_probabilityを追加
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&hourly=weather_code,precipitation_probability&daily=weather_code&timezone=Asia%2FTokyo&forecast_days=3`)
             .then(res => res.json())
             .then(data => {
                 const icon = (c) => c < 2 ? "☀️" : (c < 50 ? "☁️" : "☔");
                 
-                // 上部：今日（9時/15時/21時を固定配置）
-                document.getElementById('am').innerText = icon(data.hourly.weather_code[9]);
-                document.getElementById('pm').innerText = icon(data.hourly.weather_code[15]);
-                document.getElementById('night').innerText = icon(data.hourly.weather_code[21]);
+                // 上部：9時, 15時, 21時
+                const times = [9, 15, 21];
+                const ids = ['am', 'pm', 'night'];
+                times.forEach((t, i) => {
+                    document.getElementById(`icon-${ids[i]}`).innerText = icon(data.hourly.weather_code[t]);
+                    document.getElementById(`rain-${ids[i]}`).innerText = data.hourly.precipitation_probability[t] + "%";
+                });
 
                 // 下部：明日・明後日
                 document.getElementById('icon-1').innerText = icon(data.daily.weather_code[1]);
