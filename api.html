@@ -1,16 +1,14 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>Weather API Saver (Magic Player 対策済)</title></head>
+<head><meta charset="UTF-8"><title>Weather API Saver (フォルダ間同期版)</title></head>
 <body>
 <script>
 function updateWeather() {
     const API_KEY = '6b80c00ad3da39082b7e25c449d07c51';
-    // デフォルトは東京、URLに指定があればそれを使う
     const urlParams = new URLSearchParams(window.location.search);
     let cityName = decodeURIComponent(urlParams.get('mytown') || '東京').trim();
     let pureName = cityName.replace(/[市区町村]$/, "");
 
-    // 💡【重要】すでに本体保存されているデータをチェックする
     const cacheKey = `weather_data_${cityName}`;
     const cachedString = localStorage.getItem(cacheKey);
     const nowTime = Date.now();
@@ -18,14 +16,13 @@ function updateWeather() {
     if (cachedString) {
         try {
             const cachedData = JSON.parse(cachedString);
-            // 保存された時間が30分以内（1800000ミリ秒）なら、APIを叩かずに即終了する
             if (cachedData && cachedData.timestamp && (nowTime - cachedData.timestamp < 1800000)) {
-                console.log(`[キャッシュ生存] ${cityName} のデータは30分以内のため、API通信をスキップします。`);
+                console.log(`[キャッシュ生存] ${cityName}`);
+                // 💡 他のフォルダの画面にもデータを電波で飛ばす
+                broadcastData(cachedData);
                 return; 
             }
-        } catch(e) {
-            // 万が一データが破損していた場合はそのまま下に進んで再取得
-        }
+        } catch(e) {}
     }
 
     console.log(`[API通信実行] ${cityName} の最新天気を取得します...`);
@@ -45,13 +42,21 @@ function updateWeather() {
         ]);
     })
     .then(([current, forecast]) => {
-        // 👑 取得したデータを、端末の共通ブラウザキャッシュ（localStorage）に「地名ごとの鍵」で保存
-        localStorage.setItem(cacheKey, JSON.stringify({ current, forecast, timestamp: Date.now() }));
+        const fullData = { current, forecast, timestamp: Date.now() };
+        localStorage.setItem(cacheKey, JSON.stringify(fullData));
         console.log(`Weather updated for ${cityName}`);
+        // 💡 取得したての新データを電波で飛ばす
+        broadcastData(fullData);
     }).catch(e => console.error(e));
 }
 
-// 初回実行と定期タイマー
+// フォルダの壁を越えてWBGT画面にデータを送り届ける関数
+function broadcastData(data) {
+    const channel = new BroadcastChannel('weather_sync_channel');
+    channel.postMessage(data);
+    channel.close();
+}
+
 updateWeather(); setInterval(updateWeather, 1800000);
 </script>
 </body>
