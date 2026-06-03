@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja">
-<head><meta charset="UTF-8"><title>Weather API Saver</title></head>
+<head><meta charset="UTF-8"><title>Weather API Saver (Magic Player 対策済)</title></head>
 <body>
 <script>
 function updateWeather() {
@@ -9,6 +9,26 @@ function updateWeather() {
     const urlParams = new URLSearchParams(window.location.search);
     let cityName = decodeURIComponent(urlParams.get('mytown') || '東京').trim();
     let pureName = cityName.replace(/[市区町村]$/, "");
+
+    // 💡【重要】すでに本体保存されているデータをチェックする
+    const cacheKey = `weather_data_${cityName}`;
+    const cachedString = localStorage.getItem(cacheKey);
+    const nowTime = Date.now();
+
+    if (cachedString) {
+        try {
+            const cachedData = JSON.parse(cachedString);
+            // 保存された時間が30分以内（1800000ミリ秒）なら、APIを叩かずに即終了する
+            if (cachedData && cachedData.timestamp && (nowTime - cachedData.timestamp < 1800000)) {
+                console.log(`[キャッシュ生存] ${cityName} のデータは30分以内のため、API通信をスキップします。`);
+                return; 
+            }
+        } catch(e) {
+            // 万が一データが破損していた場合はそのまま下に進んで再取得
+        }
+    }
+
+    console.log(`[API通信実行] ${cityName} の最新天気を取得します...`);
 
     fetch(`https://api.openweathermap.org/geo/1.0/direct?q=${encodeURIComponent(pureName)},JP&limit=1&appid=${API_KEY}`)
     .then(r => r.json())
@@ -26,11 +46,12 @@ function updateWeather() {
     })
     .then(([current, forecast]) => {
         // 👑 取得したデータを、端末の共通ブラウザキャッシュ（localStorage）に「地名ごとの鍵」で保存
-        localStorage.setItem(`weather_data_${cityName}`, JSON.stringify({ current, forecast, timestamp: Date.now() }));
+        localStorage.setItem(cacheKey, JSON.stringify({ current, forecast, timestamp: Date.now() }));
         console.log(`Weather updated for ${cityName}`);
     }).catch(e => console.error(e));
 }
-// 30分に1回通信するだけ（1台あたり1日48回しか消費しません）
+
+// 初回実行と定期タイマー
 updateWeather(); setInterval(updateWeather, 1800000);
 </script>
 </body>
